@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
     }
 
-    const { studentId, name, email, gradeLevel, sectionId, password } = await request.json();
+    const { studentId, name, email, password, gradeLevel, sectionId, dateOfBirth, gender, phone, address, guardianName, guardianPhone } = await request.json();
 
     if (!name || !email || !gradeLevel || !sectionId || !password) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
@@ -103,13 +103,19 @@ export async function POST(request: Request) {
       },
     });
 
-    // Create student
+    // Create student with profile fields
     const student = await prisma.student.create({
       data: {
         studentId: finalStudentId,
         gradeLevel,
         sectionId,
         userId: user.id,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+        gender: gender || null,
+        phone: phone || null,
+        address: address || null,
+        guardianName: guardianName || null,
+        guardianPhone: guardianPhone || null,
       },
       include: {
         section: true,
@@ -125,6 +131,12 @@ export async function POST(request: Request) {
         gradeLevel: student.gradeLevel,
         sectionId: student.sectionId,
         section: student.section,
+        dateOfBirth: student.dateOfBirth,
+        gender: student.gender,
+        phone: student.phone,
+        address: student.address,
+        guardianName: student.guardianName,
+        guardianPhone: student.guardianPhone,
       }),
       { status: 201 }
     );
@@ -142,7 +154,7 @@ export async function PUT(request: Request) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
     }
 
-    const { id, name, email, gradeLevel, sectionId, password } = await request.json();
+    const { id, name, email, gradeLevel, sectionId, password, dateOfBirth, gender, phone, address, guardianName, guardianPhone } = await request.json();
 
     if (!id || !name || !email || !gradeLevel || !sectionId) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
@@ -182,12 +194,18 @@ export async function PUT(request: Request) {
       data: updateData,
     });
 
-    // Update student
+    // Update student with profile fields
     const updatedStudent = await prisma.student.update({
       where: { id },
       data: {
         gradeLevel,
         sectionId,
+        ...(dateOfBirth && { dateOfBirth: new Date(dateOfBirth) }),
+        ...(gender && { gender }),
+        ...(phone && { phone }),
+        ...(address && { address }),
+        ...(guardianName && { guardianName }),
+        ...(guardianPhone && { guardianPhone }),
       },
       include: {
         user: {
@@ -209,6 +227,12 @@ export async function PUT(request: Request) {
         gradeLevel: updatedStudent.gradeLevel,
         sectionId: updatedStudent.sectionId,
         section: updatedStudent.section,
+        dateOfBirth: updatedStudent.dateOfBirth,
+        gender: updatedStudent.gender,
+        phone: updatedStudent.phone,
+        address: updatedStudent.address,
+        guardianName: updatedStudent.guardianName,
+        guardianPhone: updatedStudent.guardianPhone,
       }),
       { status: 200 }
     );

@@ -1,4 +1,4 @@
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -33,31 +33,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, email } = await request.json();
+    const { name, email, password, dateOfBirth, gender, phone, address } = await request.json();
 
-    if (!name || !email) {
-      return NextResponse.json({ error: "Name and email required" }, { status: 400 });
+    if (!name || !email || !password) {
+      return NextResponse.json({ error: "Name, email, and password required" }, { status: 400 });
     }
 
-    // Generate temporary password
-    const tempPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10).toUpperCase();
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user and teacher
+    // Create user first
     const user = await prisma.user.create({
       data: {
         name,
         email,
         password: hashedPassword,
         role: "TEACHER",
-        teacher: { create: {} },
       },
-      include: { teacher: true },
+    });
+
+    // Create teacher with profile fields
+    const teacher = await prisma.teacher.create({
+      data: {
+        userId: user.id,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+        gender: gender || null,
+        phone: phone || null,
+        address: address || null,
+      },
     });
 
     // Return teacher with password (only shown to admin on creation)
     return NextResponse.json({
-      ...user.teacher,
+      ...teacher,
       password: tempPassword,
     }, { status: 201 });
   } catch (error: any) {
@@ -76,7 +83,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, name, email } = await request.json();
+    const { id, name, email, dateOfBirth, gender, phone, address } = await request.json();
 
     if (!id) {
       return NextResponse.json({ error: "Teacher ID required" }, { status: 400 });
@@ -97,6 +104,17 @@ export async function PUT(request: NextRequest) {
       data: {
         ...(name && { name }),
         ...(email && { email }),
+      },
+    });
+
+    // Update teacher profile fields
+    await prisma.teacher.update({
+      where: { id },
+      data: {
+        ...(dateOfBirth && { dateOfBirth: new Date(dateOfBirth) }),
+        ...(gender && { gender }),
+        ...(phone && { phone }),
+        ...(address && { address }),
       },
     });
 

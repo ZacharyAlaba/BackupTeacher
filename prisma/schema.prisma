@@ -33,6 +33,10 @@ model Teacher {
   id              String           @id @default(cuid())
   userId          String           @unique
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dateOfBirth     DateTime?
+  gender          String?
+  phone           String?
+  address         String?
   scheduleBlocks  ScheduleBlock[]
   gradeRecords    GradeRecord[]
   attendanceRecords AttendanceRecord[]
@@ -49,6 +53,12 @@ model Student {
   gradeLevel      String           // G11 or G12
   sectionId       String
   section         Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  dateOfBirth     DateTime?
+  gender          String?
+  phone           String?
+  address         String?
+  guardianName    String?
+  guardianPhone   String?
   gradeRecords    GradeRecord[]
   attendanceRecords AttendanceRecord[]
   createdAt       DateTime         @default(now())

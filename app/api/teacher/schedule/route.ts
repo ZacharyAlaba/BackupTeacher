@@ -762,6 +762,12 @@ export async function GET() {
         email: student.user.email,
         gradeLevel: student.gradeLevel,
         section: student.section,
+        dateOfBirth: student.dateOfBirth?.toISOString().split("T")[0] ?? null,
+        gender: student.gender,
+        phone: student.phone,
+        address: student.address,
+        guardianName: student.guardianName,
+        guardianPhone: student.guardianPhone,
         schedule,
         timeSlots: allTimeSlots,
       });
@@ -846,7 +852,22 @@ export async function GET() {
       (a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime)
     );
 
-    return NextResponse.json({ schedule, timeSlots, source: "database" });
+    return NextResponse.json({
+      teacher: teacher
+        ? {
+            id: teacher.id,
+            name: teacher.user.name,
+            email: teacher.user.email,
+            dateOfBirth: teacher.dateOfBirth?.toISOString().split("T")[0] ?? null,
+            gender: teacher.gender,
+            phone: teacher.phone,
+            address: teacher.address,
+          }
+        : null,
+      schedule,
+      timeSlots,
+      source: "database",
+    });
   } catch {
     return NextResponse.json(
       { schedule: demoSchedule, timeSlots: demoTimeSlots, source: "demo" },

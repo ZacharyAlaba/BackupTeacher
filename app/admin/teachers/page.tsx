@@ -15,11 +15,20 @@ export default function TeachersPage() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ name: "", email: "" });
+  const [formData, setFormData] = useState({ 
+    name: "", 
+    email: "",
+    password: "",
+    dateOfBirth: "",
+    gender: "",
+    phone: "",
+    address: ""
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [signupLinkCopied, setSignupLinkCopied] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [bulkImportFile, setBulkImportFile] = useState<File | null>(null);
   const [bulkImporting, setBulkImporting] = useState(false);
@@ -38,9 +47,14 @@ export default function TeachersPage() {
       const response = await fetch("/api/admin/teachers");
       if (response.ok) {
         setTeachers(await response.json());
+        setErrorMessage(null);
+      } else {
+        const errorBody = await response.json().catch(() => ({}));
+        setErrorMessage(errorBody.error || "Failed to fetch teachers.");
       }
     } catch (error) {
       console.error("Failed to fetch teachers:", error);
+      setErrorMessage("Failed to fetch teachers. Check console for details.");
     } finally {
       setLoading(false);
     }
@@ -60,13 +74,13 @@ export default function TeachersPage() {
 
       if (response.ok) {
         const result = await response.json();
-        setFormData({ name: "", email: "" });
+        setFormData({ name: "", email: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
         setEditingId(null);
         setShowForm(false);
         setSuccessMessage(
           editingId
             ? "Teacher updated successfully."
-            : `Teacher created successfully. Temporary password: ${result.password}`
+            : "Teacher created successfully."
         );
         await fetchTeachers();
         window.setTimeout(() => setSuccessMessage(null), 8000);
@@ -230,13 +244,64 @@ export default function TeachersPage() {
                   className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">Password {editingId ? "(leave blank to keep)" : "*"}</label>
+                <input
+                  type="password"
+                  required={!editingId}
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  placeholder="Enter password"
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">Date of Birth</label>
+                <input
+                  type="date"
+                  value={formData.dateOfBirth}
+                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">Gender</label>
+                <select
+                  value={formData.gender}
+                  onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="">Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">Phone</label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">Address</label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
               <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => {
                     setShowForm(false);
                     setEditingId(null);
-                    setFormData({ name: "", email: "" });
+                    setFormData({ name: "", email: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
                     setSuccessMessage(null);
                   }}
                   className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-semibold"
@@ -267,7 +332,7 @@ export default function TeachersPage() {
             <button
               type="button"
               onClick={() => {
-                setFormData({ name: "", email: "" });
+                setFormData({ name: "", email: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
                 setEditingId(null);
                 setSuccessMessage(null);
                 setShowForm(true);

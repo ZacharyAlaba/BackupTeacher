@@ -50,6 +50,12 @@ interface StudentData {
   email: string;
   gradeLevel: string;
   section: Section;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  guardianName?: string | null;
+  guardianPhone?: string | null;
   schedule: ScheduleBlock[];
 }
 
@@ -274,7 +280,7 @@ export default function StudentPage() {
 
         {/* Student Info Card */}
         <div className="mb-8 p-6 bg-slate-800 rounded-lg border border-slate-700">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
               <p className="text-slate-400 text-sm">Section</p>
               <p className="text-2xl font-bold text-white mt-1">{studentData.section.name}</p>
@@ -290,6 +296,30 @@ export default function StudentPage() {
             <div>
               <p className="text-slate-400 text-sm">Email</p>
               <p className="text-white mt-1">{studentData.email}</p>
+            </div>
+            <div>
+              <p className="text-slate-400 text-sm">Date of Birth</p>
+              <p className="text-white mt-1">{studentData.dateOfBirth || "—"}</p>
+            </div>
+            <div>
+              <p className="text-slate-400 text-sm">Gender</p>
+              <p className="text-white mt-1">{studentData.gender || "—"}</p>
+            </div>
+            <div>
+              <p className="text-slate-400 text-sm">Phone</p>
+              <p className="text-white mt-1">{studentData.phone || "—"}</p>
+            </div>
+            <div>
+              <p className="text-slate-400 text-sm">Guardian</p>
+              <p className="text-white mt-1">{studentData.guardianName || "—"}</p>
+            </div>
+            <div>
+              <p className="text-slate-400 text-sm">Guardian Phone</p>
+              <p className="text-white mt-1">{studentData.guardianPhone || "—"}</p>
+            </div>
+            <div className="md:col-span-3 lg:col-span-3">
+              <p className="text-slate-400 text-sm">Address</p>
+              <p className="text-white mt-1">{studentData.address || "—"}</p>
             </div>
           </div>
         </div>

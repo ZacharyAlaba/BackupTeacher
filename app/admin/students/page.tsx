@@ -36,6 +36,12 @@ export default function StudentsPage() {
     gradeLevel: "",
     sectionId: "",
     password: "",
+    dateOfBirth: "",
+    gender: "",
+    phone: "",
+    address: "",
+    guardianName: "",
+    guardianPhone: "",
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -43,6 +49,7 @@ export default function StudentsPage() {
   const [bulkImportFile, setBulkImportFile] = useState<File | null>(null);
   const [bulkImporting, setBulkImporting] = useState(false);
   const [bulkImportResult, setBulkImportResult] = useState<any>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -60,9 +67,14 @@ export default function StudentsPage() {
       const response = await fetch("/api/admin/students");
       if (response.ok) {
         setStudents(await response.json());
+        setErrorMessage(null);
+      } else {
+        const errorBody = await response.json().catch(() => ({}));
+        setErrorMessage(errorBody.error || "Failed to fetch students.");
       }
     } catch (error) {
       console.error("Failed to fetch students:", error);
+      setErrorMessage("Failed to fetch students. Check console for details.");
     } finally {
       setLoading(false);
     }
@@ -247,6 +259,12 @@ export default function StudentsPage() {
                 gradeLevel: "",
                 sectionId: "",
                 password: "",
+                dateOfBirth: "",
+                gender: "",
+                phone: "",
+                address: "",
+                guardianName: "",
+                guardianPhone: "",
               });
               setEditingId(null);
               setShowForm(!showForm);
@@ -339,19 +357,85 @@ export default function StudentsPage() {
                 </select>
               </div>
 
-              {!editingId && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Password *</label>
-                  <input
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder="Initial password"
-                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-                    required={!editingId}
-                  />
-                </div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Password {editingId ? "(leave blank to keep)" : "*"}</label>
+                <input
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  placeholder="Enter password"
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                  required={!editingId}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Date of Birth</label>
+                <input
+                  type="date"
+                  value={formData.dateOfBirth}
+                  onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Gender</label>
+                <select
+                  value={formData.gender}
+                  onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                >
+                  <option value="">Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Phone</label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder="Contact number"
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Address</label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="Home address"
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Guardian Name</label>
+                <input
+                  type="text"
+                  value={formData.guardianName}
+                  onChange={(e) => setFormData({ ...formData, guardianName: e.target.value })}
+                  placeholder="Parent/Guardian name"
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Guardian Phone</label>
+                <input
+                  type="tel"
+                  value={formData.guardianPhone}
+                  onChange={(e) => setFormData({ ...formData, guardianPhone: e.target.value })}
+                  placeholder="Guardian contact number"
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                />
+              </div>
             </div>
 
             <button

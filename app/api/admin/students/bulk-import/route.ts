@@ -9,6 +9,12 @@ interface BulkImportStudent {
   email: string;
   gradeLevel: string;
   sectionId: string;
+  dateOfBirth?: string;
+  gender?: string;
+  phone?: string;
+  address?: string;
+  guardianName?: string;
+  guardianPhone?: string;
 }
 
 interface ImportResult {
@@ -59,6 +65,12 @@ export async function POST(request: Request) {
     const emailIndex = headers.indexOf("email");
     const gradeLevelIndex = headers.indexOf("grade");
     const sectionNameIndex = headers.indexOf("section");
+    const dobIndex = headers.indexOf("dateofbirth");
+    const genderIndex = headers.indexOf("gender");
+    const phoneIndex = headers.indexOf("phone");
+    const addressIndex = headers.indexOf("address");
+    const guardianNameIndex = headers.indexOf("guardianname");
+    const guardianPhoneIndex = headers.indexOf("guardianphone");
 
     if (nameIndex === -1 || emailIndex === -1 || gradeLevelIndex === -1 || sectionNameIndex === -1) {
       return new Response(
@@ -87,8 +99,15 @@ export async function POST(request: Request) {
 
       const name = values[nameIndex];
       const email = values[emailIndex];
-      const gradeLevel = values[gradeLevelIndex].trim() === "11" ? "G11" : "G12";
+      const gradeRaw = values[gradeLevelIndex].trim();
+      const gradeLevel = gradeRaw.toUpperCase().startsWith("G") ? gradeRaw.toUpperCase() : `G${gradeRaw}`;
       const sectionName = values[sectionNameIndex];
+      const dateOfBirth = dobIndex !== -1 ? values[dobIndex] : undefined;
+      const gender = genderIndex !== -1 ? values[genderIndex] : undefined;
+      const phone = phoneIndex !== -1 ? values[phoneIndex] : undefined;
+      const address = addressIndex !== -1 ? values[addressIndex] : undefined;
+      const guardianName = guardianNameIndex !== -1 ? values[guardianNameIndex] : undefined;
+      const guardianPhone = guardianPhoneIndex !== -1 ? values[guardianPhoneIndex] : undefined;
 
       try {
         // Validate inputs
@@ -103,6 +122,14 @@ export async function POST(request: Request) {
         const sectionId = sectionMap.get(sectionName.toLowerCase());
         if (!sectionId) {
           throw new Error(`Section '${sectionName}' not found`);
+        }
+
+        let parsedDateOfBirth: Date | undefined;
+        if (dateOfBirth) {
+          parsedDateOfBirth = new Date(dateOfBirth);
+          if (Number.isNaN(parsedDateOfBirth.getTime())) {
+            throw new Error("Invalid date of birth format");
+          }
         }
 
         // Check if email already exists
@@ -138,6 +165,12 @@ export async function POST(request: Request) {
             gradeLevel,
             sectionId,
             userId: user.id,
+            dateOfBirth: parsedDateOfBirth,
+            gender,
+            phone,
+            address,
+            guardianName,
+            guardianPhone,
           },
         });
 

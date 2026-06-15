@@ -20,6 +20,16 @@ type TimeSlot = {
   endTime: string;
 };
 
+type TeacherProfile = {
+  id: string;
+  name: string;
+  email: string;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  phone?: string | null;
+  address?: string | null;
+};
+
 const WEEK_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
 export default function TeacherDashboard() {
@@ -27,6 +37,7 @@ export default function TeacherDashboard() {
   const router = useRouter();
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [teacherProfile, setTeacherProfile] = useState<TeacherProfile | null>(null);
   const [source, setSource] = useState<"database" | "demo" | "loading">("loading");
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
@@ -49,7 +60,7 @@ export default function TeacherDashboard() {
   const downloadTimetablePdf = () => {
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
 
-    const teacherName = session?.user?.name || "Teacher";
+    const teacherName = teacherProfile?.name || session?.user?.name || "Teacher";
     const generatedAt = new Date().toLocaleString("en-US");
 
     doc.setFontSize(16);
@@ -58,7 +69,12 @@ export default function TeacherDashboard() {
     doc.text("Senior High School - Weekly Teaching Timetable", 14, 22);
     doc.setFontSize(11);
     doc.text(`Teacher: ${teacherName}`, 14, 29);
-    doc.text(`Generated: ${generatedAt}`, 14, 35);
+    if (teacherProfile?.phone) {
+      doc.text(`Phone: ${teacherProfile.phone}`, 14, 35);
+      doc.text(`Generated: ${generatedAt}`, 14, 41);
+    } else {
+      doc.text(`Generated: ${generatedAt}`, 14, 35);
+    }
 
     const head = [["Time", ...WEEK_DAYS]];
 
@@ -134,12 +150,14 @@ export default function TeacherDashboard() {
         }
 
         const data = (await response.json()) as {
+          teacher?: TeacherProfile | null;
           schedule: ScheduleItem[];
           timeSlots: TimeSlot[];
           source: "database" | "demo";
         };
 
         if (!cancelled) {
+          setTeacherProfile(data.teacher ?? null);
           setSchedule(data.schedule ?? []);
           setTimeSlots(data.timeSlots ?? []);
           setSource(data.source ?? "demo");
@@ -220,7 +238,7 @@ export default function TeacherDashboard() {
                 Libertad NHS Senior High
               </p>
               <h1 className="mt-1 text-3xl font-semibold text-white">Teacher Dashboard</h1>
-              <p className="mt-1 text-slate-300">Welcome, {session?.user?.name || "Teacher"}</p>
+              <p className="mt-1 text-slate-300">Welcome, {teacherProfile?.name || session?.user?.name || "Teacher"}</p>
               <p className="mt-1 text-xs text-slate-500">
                 Data source: {source === "loading" ? "loading..." : source}
               </p>
@@ -247,6 +265,34 @@ export default function TeacherDashboard() {
             </div>
           </div>
         </header>
+
+        {teacherProfile && (
+          <section className="mt-6 rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-xl shadow-slate-950/10">
+            <h2 className="text-xl font-semibold text-white">Your Profile</h2>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4">
+                <p className="text-sm text-slate-400">Email</p>
+                <p className="mt-1 text-white">{teacherProfile.email}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4">
+                <p className="text-sm text-slate-400">Date of Birth</p>
+                <p className="mt-1 text-white">{teacherProfile.dateOfBirth || "—"}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4">
+                <p className="text-sm text-slate-400">Gender</p>
+                <p className="mt-1 text-white">{teacherProfile.gender || "—"}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4">
+                <p className="text-sm text-slate-400">Phone</p>
+                <p className="mt-1 text-white">{teacherProfile.phone || "—"}</p>
+              </div>
+              <div className="lg:col-span-2 rounded-2xl border border-slate-700 bg-slate-800 p-4">
+                <p className="text-sm text-slate-400">Address</p>
+                <p className="mt-1 text-white">{teacherProfile.address || "—"}</p>
+              </div>
+            </div>
+          </section>
+        )}
 
         <section className="mt-6 grid gap-4 lg:grid-cols-3">
           <article className="rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-xl shadow-slate-950/10">
