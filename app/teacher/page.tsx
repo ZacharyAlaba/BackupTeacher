@@ -6,6 +6,7 @@ import autoTable from "jspdf-autotable";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useTeacherTheme } from "@/lib/useTeacherTheme";
 
 type ScheduleItem = {
   day: string;
@@ -32,13 +33,23 @@ type TeacherProfile = {
 
 const WEEK_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
+function isBreakSubject(subject: string) {
+  const normalized = subject?.toUpperCase() || "";
+  return normalized.includes("RECESS") || normalized.includes("LUNCH");
+}
+
 export default function TeacherDashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { theme, toggleTheme } = useTeacherTheme();
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [teacherProfile, setTeacherProfile] = useState<TeacherProfile | null>(null);
   const [source, setSource] = useState<"database" | "demo" | "loading">("loading");
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileForm, setProfileForm] = useState({ dateOfBirth: "", gender: "", phone: "", address: "" });
+  const [profileError, setProfileError] = useState("");
+  const [profileSuccess, setProfileSuccess] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [passwordError, setPasswordError] = useState("");
@@ -53,8 +64,13 @@ export default function TeacherDashboard() {
   );
 
   const todayClasses = useMemo(
-    () => schedule.filter((item) => item.day === today),
+    () => schedule.filter((item) => item.day === today && !isBreakSubject(item.subject)),
     [schedule, today]
+  );
+
+  const realClassCount = useMemo(
+    () => schedule.filter((item) => !isBreakSubject(item.subject)).length,
+    [schedule]
   );
 
   const downloadTimetablePdf = () => {
@@ -186,6 +202,47 @@ export default function TeacherDashboard() {
     );
   }
 
+  function openProfileModal() {
+    setProfileForm({
+      dateOfBirth: teacherProfile?.dateOfBirth || "",
+      gender: teacherProfile?.gender || "",
+      phone: teacherProfile?.phone || "",
+      address: teacherProfile?.address || "",
+    });
+    setProfileError("");
+    setProfileSuccess(false);
+    setShowProfileModal(true);
+  }
+
+  async function handleProfileSave(e: React.FormEvent) {
+    e.preventDefault();
+    setProfileError("");
+    setProfileSuccess(false);
+
+    try {
+      const response = await fetch("/api/teacher/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profileForm),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setTeacherProfile((current) => (current ? { ...current, ...data } : current));
+        setProfileSuccess(true);
+        setTimeout(() => {
+          setShowProfileModal(false);
+          setProfileSuccess(false);
+        }, 1500);
+      } else {
+        setProfileError(data.error || "Failed to update profile");
+      }
+    } catch (error) {
+      setProfileError("Failed to update profile");
+    }
+  }
+
   async function handlePasswordChange(e: React.FormEvent) {
     e.preventDefault();
     setPasswordError("");
@@ -229,17 +286,17 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-slate-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-slate-100 light:bg-none light:from-transparent light:via-transparent light:to-transparent light:bg-slate-100 light:text-slate-900">
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-8">
-        <header className="rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-xl shadow-slate-950/10">
+        <header className="rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 light:text-slate-500">
                 Libertad NHS Senior High
               </p>
-              <h1 className="mt-1 text-3xl font-semibold text-white">Teacher Dashboard</h1>
-              <p className="mt-1 text-slate-300">Welcome, {teacherProfile?.name || session?.user?.name || "Teacher"}</p>
-              <p className="mt-1 text-xs text-slate-500">
+              <h1 className="mt-1 text-3xl font-semibold text-white light:text-slate-900">Teacher Dashboard</h1>
+              <p className="mt-1 text-slate-300 light:text-slate-600">Welcome, {teacherProfile?.name || session?.user?.name || "Teacher"}</p>
+              <p className="mt-1 text-xs text-slate-500 light:text-slate-400">
                 Data source: {source === "loading" ? "loading..." : source}
               </p>
             </div>
@@ -251,10 +308,22 @@ export default function TeacherDashboard() {
                 Attendance
               </button>
               <button
+                onClick={openProfileModal}
+                className="rounded-xl bg-slate-700 hover:bg-slate-600 px-4 py-2 text-sm font-semibold text-white transition light:bg-slate-200 light:text-slate-900 light:hover:bg-slate-300"
+              >
+                Edit Profile
+              </button>
+              <button
                 onClick={() => setShowPasswordModal(true)}
-                className="rounded-xl bg-slate-700 hover:bg-slate-600 px-4 py-2 text-sm font-semibold text-white transition"
+                className="rounded-xl bg-slate-700 hover:bg-slate-600 px-4 py-2 text-sm font-semibold text-white transition light:bg-slate-200 light:text-slate-900 light:hover:bg-slate-300"
               >
                 Change Password
+              </button>
+              <button
+                onClick={toggleTheme}
+                className="rounded-xl bg-slate-700 hover:bg-slate-600 px-4 py-2 text-sm font-semibold text-white transition light:bg-slate-200 light:text-slate-900 light:hover:bg-slate-300"
+              >
+                {theme === "dark" ? "Light Mode" : "Dark Mode"}
               </button>
               <button
                 onClick={() => signOut({ callbackUrl: "/" })}
@@ -267,50 +336,50 @@ export default function TeacherDashboard() {
         </header>
 
         {teacherProfile && (
-          <section className="mt-6 rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-xl shadow-slate-950/10">
-            <h2 className="text-xl font-semibold text-white">Your Profile</h2>
+          <section className="mt-6 rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
+            <h2 className="text-xl font-semibold text-white light:text-slate-900">Your Profile</h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4">
-                <p className="text-sm text-slate-400">Email</p>
-                <p className="mt-1 text-white">{teacherProfile.email}</p>
+              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4 light:border-slate-200 light:bg-slate-50">
+                <p className="text-sm text-slate-400 light:text-slate-500">Email</p>
+                <p className="mt-1 text-white light:text-slate-900">{teacherProfile.email}</p>
               </div>
-              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4">
-                <p className="text-sm text-slate-400">Date of Birth</p>
-                <p className="mt-1 text-white">{teacherProfile.dateOfBirth || "—"}</p>
+              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4 light:border-slate-200 light:bg-slate-50">
+                <p className="text-sm text-slate-400 light:text-slate-500">Date of Birth</p>
+                <p className="mt-1 text-white light:text-slate-900">{teacherProfile.dateOfBirth || "—"}</p>
               </div>
-              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4">
-                <p className="text-sm text-slate-400">Gender</p>
-                <p className="mt-1 text-white">{teacherProfile.gender || "—"}</p>
+              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4 light:border-slate-200 light:bg-slate-50">
+                <p className="text-sm text-slate-400 light:text-slate-500">Gender</p>
+                <p className="mt-1 text-white light:text-slate-900">{teacherProfile.gender || "—"}</p>
               </div>
-              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4">
-                <p className="text-sm text-slate-400">Phone</p>
-                <p className="mt-1 text-white">{teacherProfile.phone || "—"}</p>
+              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4 light:border-slate-200 light:bg-slate-50">
+                <p className="text-sm text-slate-400 light:text-slate-500">Phone</p>
+                <p className="mt-1 text-white light:text-slate-900">{teacherProfile.phone || "—"}</p>
               </div>
-              <div className="lg:col-span-2 rounded-2xl border border-slate-700 bg-slate-800 p-4">
-                <p className="text-sm text-slate-400">Address</p>
-                <p className="mt-1 text-white">{teacherProfile.address || "—"}</p>
+              <div className="lg:col-span-2 rounded-2xl border border-slate-700 bg-slate-800 p-4 light:border-slate-200 light:bg-slate-50">
+                <p className="text-sm text-slate-400 light:text-slate-500">Address</p>
+                <p className="mt-1 text-white light:text-slate-900">{teacherProfile.address || "—"}</p>
               </div>
             </div>
           </section>
         )}
 
         <section className="mt-6 grid gap-4 lg:grid-cols-3">
-          <article className="rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-xl shadow-slate-950/10">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Today</p>
-            <h2 className="mt-2 text-lg font-semibold text-white">{today} Classes</h2>
-            <p className="mt-2 text-3xl font-semibold text-indigo-300">{todayClasses.length}</p>
+          <article className="rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 light:text-slate-500">Today</p>
+            <h2 className="mt-2 text-lg font-semibold text-white light:text-slate-900">{today} Classes</h2>
+            <p className="mt-2 text-3xl font-semibold text-indigo-300 light:text-indigo-600">{todayClasses.length}</p>
           </article>
 
-          <article className="rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-xl shadow-slate-950/10">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">This Week</p>
-            <h2 className="mt-2 text-lg font-semibold text-white">Total Class Blocks</h2>
-            <p className="mt-2 text-3xl font-semibold text-indigo-300">{schedule.length}</p>
+          <article className="rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 light:text-slate-500">This Week</p>
+            <h2 className="mt-2 text-lg font-semibold text-white light:text-slate-900">Total Class Blocks</h2>
+            <p className="mt-2 text-3xl font-semibold text-indigo-300 light:text-indigo-600">{realClassCount}</p>
           </article>
 
-          <article className="rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-xl shadow-slate-950/10">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Quick Guide</p>
-            <h2 className="mt-2 text-lg font-semibold text-white">How to use</h2>
-            <ul className="mt-2 space-y-1 text-sm text-slate-300">
+          <article className="rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 light:text-slate-500">Quick Guide</p>
+            <h2 className="mt-2 text-lg font-semibold text-white light:text-slate-900">How to use</h2>
+            <ul className="mt-2 space-y-1 text-sm text-slate-300 light:text-slate-600">
               <li>• Check today’s classes first.</li>
               <li>• Review your weekly timetable below.</li>
               <li>• Report conflicts to admin immediately.</li>
@@ -318,28 +387,28 @@ export default function TeacherDashboard() {
           </article>
         </section>
 
-        <section className="mt-6 rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-xl shadow-slate-950/10">
-          <h2 className="text-xl font-semibold text-white">Today&apos;s Class Details</h2>
+        <section className="mt-6 rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
+          <h2 className="text-xl font-semibold text-white light:text-slate-900">Today&apos;s Class Details</h2>
           {todayClasses.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-400">No classes scheduled for today.</p>
+            <p className="mt-3 text-sm text-slate-400 light:text-slate-500">No classes scheduled for today.</p>
           ) : (
             <div className="mt-4 overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-700 text-sm">
-                <thead className="bg-slate-800">
+              <table className="min-w-full divide-y divide-slate-700 text-sm light:divide-slate-200">
+                <thead className="bg-slate-800 light:bg-slate-100">
                   <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-300">Time</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-300">Subject</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-300">Section</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-300">Room</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-300 light:text-slate-600">Time</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-300 light:text-slate-600">Subject</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-300 light:text-slate-600">Section</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-300 light:text-slate-600">Room</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-700 bg-slate-950">
+                <tbody className="divide-y divide-slate-700 bg-slate-950 light:divide-slate-200 light:bg-white">
                   {todayClasses.map((item) => (
-                    <tr key={`${item.day}-${item.timeSlot}-${item.subject}`} className="odd:bg-slate-900 even:bg-slate-950">
-                      <td className="px-4 py-3 text-slate-300">{item.timeSlot}</td>
-                      <td className="px-4 py-3 text-white font-medium">{item.subject}</td>
-                      <td className="px-4 py-3 text-slate-300">{item.section}</td>
-                      <td className="px-4 py-3 text-slate-300">{item.room || "-"}</td>
+                    <tr key={`${item.day}-${item.timeSlot}-${item.subject}`} className="odd:bg-slate-900 even:bg-slate-950 light:odd:bg-white light:even:bg-slate-50">
+                      <td className="px-4 py-3 text-slate-300 light:text-slate-600">{item.timeSlot}</td>
+                      <td className="px-4 py-3 text-white font-medium light:text-slate-900">{item.subject}</td>
+                      <td className="px-4 py-3 text-slate-300 light:text-slate-600">{item.section}</td>
+                      <td className="px-4 py-3 text-slate-300 light:text-slate-600">{item.room || "-"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -348,9 +417,9 @@ export default function TeacherDashboard() {
           )}
         </section>
 
-        <section className="mt-6 rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-xl shadow-slate-950/10">
+        <section className="mt-6 rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <h2 className="text-xl font-semibold text-white">Weekly Timetable</h2>
+            <h2 className="text-xl font-semibold text-white light:text-slate-900">Weekly Timetable</h2>
             <button
               onClick={downloadTimetablePdf}
               className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
@@ -360,6 +429,88 @@ export default function TeacherDashboard() {
           </div>
           <Timetable schedule={schedule} timeSlots={timeSlots} />
         </section>
+
+        {/* Edit Profile Modal */}
+        {showProfileModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white border border-slate-200 rounded-xl p-8 max-w-lg w-full shadow-lg">
+              <h2 className="text-2xl font-bold text-slate-900 mb-4">Edit Profile</h2>
+
+              {profileSuccess && (
+                <div className="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded-lg">
+                  Profile updated successfully!
+                </div>
+              )}
+
+              {profileError && (
+                <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg">
+                  {profileError}
+                </div>
+              )}
+
+              <form onSubmit={handleProfileSave} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Date of Birth</label>
+                    <input
+                      type="date"
+                      value={profileForm.dateOfBirth}
+                      onChange={(e) => setProfileForm({ ...profileForm, dateOfBirth: e.target.value })}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Gender</label>
+                    <select
+                      value={profileForm.gender}
+                      onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"
+                    >
+                      <option value="">Select gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      value={profileForm.phone}
+                      onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
+                  <textarea
+                    value={profileForm.address}
+                    onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
+                    rows={2}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowProfileModal(false)}
+                    className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-indigo-700 hover:bg-indigo-600 text-white rounded-lg font-semibold"
+                  >
+                    Save Profile
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Password Change Modal */}
         {showPasswordModal && (

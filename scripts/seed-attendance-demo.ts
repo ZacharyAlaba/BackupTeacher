@@ -1,16 +1,15 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../lib/prisma";
+import supabaseAdmin from "../lib/supabaseAdmin";
 import bcrypt from "bcryptjs";
-
-const prisma = new PrismaClient();
 
 async function main() {
   console.log("Checking existing attendance records...");
   let existing = -1;
   try {
-    const res: any = await prisma.$queryRawUnsafe('SELECT COUNT(*)::int AS c FROM "AttendanceRecord"');
-    existing = Array.isArray(res) ? res[0].c : res.c;
+    const { count } = await supabaseAdmin.from("AttendanceRecord").select("id", { count: "exact" });
+    existing = typeof count === "number" ? count : -1;
   } catch (e) {
-    console.warn('Attendance table may not exist yet or is inaccessible:', e.message || e);
+    console.warn("Attendance table may not exist yet or is inaccessible:", e instanceof Error ? e.message : e);
     existing = -1;
   }
 
@@ -22,10 +21,8 @@ async function main() {
 
   const existingStudentIds: Set<string> = new Set();
   if (existing > 0) {
-    const existingRows: any = await prisma.$queryRawUnsafe('SELECT DISTINCT "studentId" FROM "AttendanceRecord"');
-    for (const row of existingRows) {
-      existingStudentIds.add(row.studentId);
-    }
+    const { data: existingRows } = await supabaseAdmin.from("AttendanceRecord").select("studentId");
+    for (const row of existingRows || []) existingStudentIds.add(row.studentId);
   }
 
   const subjects = await prisma.subject.findMany({ take: 5 });
@@ -93,12 +90,25 @@ async function main() {
     const section = sections[i % Math.max(1, sections.length)];
     const status = i % 5 === 0 ? "ABSENT" : "PRESENT";
 
-    const sql = `INSERT INTO "AttendanceRecord" ("id","studentId","teacherId","subjectId","sectionId","gradingPeriod","academicYear",status,remarks,"createdAt","updatedAt") SELECT gen_random_uuid(),$1,$2,$3,$4,$5,$6,$7::"AttendanceStatus",$8,now(),now() WHERE NOT EXISTS (SELECT 1 FROM "AttendanceRecord" WHERE "studentId"=$1 AND "subjectId"=$3 AND "sectionId"=$4 AND "gradingPeriod"=$5 AND "academicYear"=$6);`;
     try {
-      await prisma.$executeRawUnsafe(sql, student.id, teacher?.id ?? null, subject.id, section?.id ?? null, gradingPeriod, academicYear, status, 'Demo seed');
+      await supabaseAdmin.from("AttendanceRecord").upsert(
+        [
+          {
+            studentId: student.id,
+            teacherId: teacher?.id ?? null,
+            subjectId: subject.id,
+            sectionId: section?.id ?? null,
+            gradingPeriod,
+            academicYear,
+            status,
+            remarks: "Demo seed",
+          },
+        ],
+        { onConflict: "studentId,subjectId,sectionId,gradingPeriod,academicYear" }
+      );
       inserted++;
     } catch (err) {
-      console.warn('Insert failed for', student.id, err.message || err);
+      console.warn("Insert failed for", student.id, err instanceof Error ? err.message : err);
     }
   }
 

@@ -140,9 +140,17 @@ export async function POST(request: Request) {
       }),
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to create student:", error);
-    return new Response(JSON.stringify({ error: "Failed to create student" }), { status: 500 });
+    const errorMessage = error?.message || error?.meta?.message || "Unknown error";
+    return new Response(
+      JSON.stringify({ 
+        error: "Failed to create student", 
+        details: errorMessage,
+        code: error?.code 
+      }), 
+      { status: 500 }
+    );
   }
 }
 

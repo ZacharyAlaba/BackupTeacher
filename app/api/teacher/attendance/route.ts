@@ -51,6 +51,8 @@ export async function GET() {
 
     const sectionMap = new Map<string, { id: string; name: string; gradeLevel: string; track: string; students: any[] }>();
     const subjectMap = new Map<string, { id: string; name: string; gradeLevel: string; track: string | null }>();
+    const sectionSubjectAssignments: Array<{ sectionId: string; subjectId: string; subjectName: string }> = [];
+    const assignmentSet = new Set<string>();
 
     for (const block of teacher.scheduleBlocks) {
       if (!sectionMap.has(block.sectionId)) {
@@ -74,6 +76,16 @@ export async function GET() {
           name: block.subject.name,
           gradeLevel: block.subject.gradeLevel,
           track: block.subject.track,
+        });
+      }
+
+      const assignmentKey = `${block.sectionId}:${block.subjectId}`;
+      if (!assignmentSet.has(assignmentKey)) {
+        assignmentSet.add(assignmentKey);
+        sectionSubjectAssignments.push({
+          sectionId: block.sectionId,
+          subjectId: block.subjectId,
+          subjectName: block.subject.name,
         });
       }
     }
@@ -101,6 +113,7 @@ export async function GET() {
       academicYear: getAcademicYear(),
       sections: Array.from(sectionMap.values()),
       subjects: Array.from(subjectMap.values()),
+      sectionSubjectAssignments,
       attendanceRecords,
     });
   } catch (error) {
@@ -123,14 +136,20 @@ export async function POST(request: NextRequest) {
   try {
     const teacher = await prisma.teacher.findUnique({ where: { userId: session.user.id } });
     if (!teacher) {
+      console.log("Teacher not found for userId:", session.user.id);
       return NextResponse.json({ message: "Teacher not found" }, { status: 404 });
     }
 
-    const { studentId, subjectId, sectionId, gradingPeriod, status, remarks, academicYear } = await request.json();
+    const { studentId, subjectId, sectionId, gradingPeriod, status, remarks, academicYear, date } = await request.json();
+    console.log("Save attendance request:", { studentId, subjectId, sectionId, gradingPeriod, status, date });
 
     if (!studentId || !subjectId || !sectionId || !gradingPeriod || !status) {
+      console.log("Missing required fields");
       return NextResponse.json({ message: "studentId, subjectId, sectionId, gradingPeriod, and status are required" }, { status: 400 });
     }
+
+    const attendanceDate = date || new Date().toISOString().slice(0, 10);
+    console.log("Attendance date:", attendanceDate);
 
     const sectionBlock = await prisma.scheduleBlock.findFirst({
       where: {
@@ -141,6 +160,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!sectionBlock) {
+      console.log("Teacher not assigned to section/subject:", { teacherId: teacher.id, subjectId, sectionId });
       return NextResponse.json({ message: "You are not assigned to this section and subject" }, { status: 403 });
     }
 
@@ -152,16 +172,20 @@ export async function POST(request: NextRequest) {
     });
 
     if (!student) {
+      console.log("Student not found in section:", { studentId, sectionId });
       return NextResponse.json({ message: "Student not found in this section" }, { status: 404 });
     }
 
+    console.log("Upserting attendance record:", { studentId, subjectId, sectionId, teacherId: teacher.id, gradingPeriod, date: attendanceDate, status });
+
     const record = await prisma.attendanceRecord.upsert({
       where: {
-        studentId_subjectId_gradingPeriod_academicYear: {
+        studentId_subjectId_gradingPeriod_academicYear_date: {
           studentId,
           subjectId,
           gradingPeriod,
           academicYear: academicYear || getAcademicYear(),
+          date: attendanceDate,
         },
       },
       create: {
@@ -171,6 +195,7 @@ export async function POST(request: NextRequest) {
         teacherId: teacher.id,
         gradingPeriod,
         academicYear: academicYear || getAcademicYear(),
+        date: attendanceDate,
         status,
         remarks: remarks || null,
       },
@@ -178,6 +203,7 @@ export async function POST(request: NextRequest) {
         sectionId,
         teacherId: teacher.id,
         status,
+        date: attendanceDate,
         remarks: remarks || null,
       },
       include: {
@@ -196,9 +222,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log("✓ Attendance record saved successfully:", record.id);
     return NextResponse.json(record, { status: 200 });
   } catch (error) {
     console.error("Teacher attendance save error:", error);
-    return NextResponse.json({ message: "Failed to save attendance" }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ message: "Failed to save attendance: " + errorMessage }, { status: 500 });
   }
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 interface Teacher {
   id: string;
@@ -12,6 +12,7 @@ interface Teacher {
 
 export default function TeachersPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -36,13 +37,21 @@ export default function TeachersPage() {
   const [signupUrl, setSignupUrl] = useState("/signup");
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setSignupUrl(`${window.location.origin}/signup`);
+    if (status === "unauthenticated") {
+      router.push("/login");
+      return;
     }
-    fetchTeachers();
-  }, []);
+
+    if (status === "authenticated") {
+      if (typeof window !== "undefined") {
+        setSignupUrl(`${window.location.origin}/signup`);
+      }
+      fetchTeachers();
+    }
+  }, [status, router]);
 
   async function fetchTeachers() {
+    setLoading(true);
     try {
       const response = await fetch("/api/admin/teachers");
       if (response.ok) {
@@ -152,7 +161,15 @@ export default function TeachersPage() {
   }
 
   function handleEdit(teacher: Teacher) {
-    setFormData({ name: teacher.user.name, email: teacher.user.email });
+    setFormData({
+      name: teacher.user.name,
+      email: teacher.user.email,
+      password: "",
+      dateOfBirth: "",
+      gender: "",
+      phone: "",
+      address: "",
+    });
     setEditingId(teacher.id);
     setShowForm(true);
   }
@@ -354,19 +371,32 @@ export default function TeachersPage() {
             </button>
           </div>
         </div>
+        {errorMessage && (
+          <div className="mb-6 rounded-lg border border-red-500 bg-red-500/10 p-4 text-sm text-red-200">
+            <div className="flex items-center justify-between gap-4">
+              <span>{errorMessage}</span>
+              <button
+                onClick={fetchTeachers}
+                className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
         {showBulkImport && (
           <div className="mb-8 p-6 bg-slate-800 rounded-lg border border-slate-700">
             <h2 className="text-2xl font-bold text-white mb-4">Bulk Import Teachers</h2>
             <p className="text-slate-400 mb-6">
-              Upload a CSV file with columns: name, email
+              Upload a CSV or Excel file with columns: name, email
             </p>
 
             <form onSubmit={handleBulkImport} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">CSV File *</label>
+                <label className="block text-sm font-medium text-slate-300 mb-2">CSV or Excel File *</label>
                 <input
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.xlsx,.xls"
                   onChange={(e) => setBulkImportFile(e.target.files?.[0] || null)}
                   className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500 file:bg-blue-600 file:text-white file:px-4 file:py-2 file:rounded file:border-0 file:cursor-pointer file:mr-4"
                   required

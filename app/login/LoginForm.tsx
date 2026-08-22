@@ -2,8 +2,10 @@
 
 import { signIn } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import OTPForm from "./OTPForm";
 
 type UserRole = "ADMIN" | "TEACHER" | "STUDENT";
 
@@ -17,6 +19,8 @@ export default function LoginForm({ role }: LoginFormProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showOTPForm, setShowOTPForm] = useState(false);
+  const [otpEmail, setOtpEmail] = useState("");
 
   const isAdmin = role === "ADMIN";
   const isTeacher = role === "TEACHER";
@@ -66,129 +70,176 @@ export default function LoginForm({ role }: LoginFormProps) {
     return "Student Login";
   };
 
+  const getRoleColor = () => {
+    if (isAdmin) return "indigo";
+    if (isTeacher) return "cyan";
+    return "green";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      const result = await signIn("credentials", {
-        identifier,
-        password,
-        role,
-        redirect: false,
+      // First, verify credentials by attempting to get user from database
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: identifier, password }),
       });
 
-      if (result?.error) {
-        setError(getErrorMessage());
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || getErrorMessage());
         setLoading(false);
         return;
       }
 
-      if (isAdmin) {
-        router.push("/admin");
-      } else if (isTeacher) {
-        router.push("/teacher");
-      } else {
-        router.push("/student");
-      }
-      router.refresh();
+      // If OTP was sent successfully, show OTP form
+      setOtpEmail(identifier);
+      setShowOTPForm(true);
+      setLoading(false);
     } catch {
       setError("An error occurred. Please try again.");
       setLoading(false);
     }
   };
 
+  const handleBackFromOTP = () => {
+    setShowOTPForm(false);
+    setOtpEmail("");
+    setError("");
+  };
+
+  const themeClass = `${getRoleColor()}`;
+
+  // Show OTP form if OTP verification is needed
+  if (showOTPForm) {
+    return (
+      <OTPForm
+        email={otpEmail}
+        password={password}
+        role={role}
+        onBack={handleBackFromOTP}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
-      <div className="mx-auto flex min-h-screen w-full max-w-6xl items-center px-4 py-10 md:px-8">
-        <div className="grid w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl lg:grid-cols-2">
-          <section className="flex flex-col justify-between bg-indigo-700 p-8 text-white md:p-10">
-            <div>
-              <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 text-2xl font-bold">
-                LN
+      <div className="mx-auto flex min-h-screen w-full items-center px-4 py-10 md:px-8">
+        <div className="grid w-full overflow-hidden rounded-3xl bg-white shadow-2xl lg:grid-cols-2">
+          {/* Left Panel with Background Image */}
+          <section 
+            className="relative hidden flex-col justify-between p-8 text-white md:flex md:p-10 lg:p-12"
+            style={{
+              backgroundImage: "url('/images/libertad.jpg')",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          >
+            {/* Dark overlay */}
+            <div className="absolute inset-0 bg-black/50"></div>
+            
+            <div className="relative z-10">
+              <div className="inline-flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-white/10 backdrop-blur">
+                <Image
+                  src="/images/logo.jpg"
+                  alt="Libertad National High School"
+                  width={80}
+                  height={80}
+                  className="object-cover"
+                />
               </div>
-              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-100">
+              <p className="mt-6 text-sm font-semibold uppercase tracking-[0.2em] text-white/90">
                 Libertad National High School
               </p>
-              <h1 className="mt-3 text-3xl font-semibold leading-tight md:text-4xl">
-                Senior High School Scheduling Portal
+              <h1 className="mt-3 text-4xl font-bold leading-tight">
+                Senior High School<br />Scheduling Portal
               </h1>
-              <p className="mt-4 max-w-md text-indigo-100">
+              <p className="mt-5 max-w-md text-white/90 leading-relaxed">
                 {getRoleDescription()}
               </p>
             </div>
-            <p className="mt-8 text-sm text-indigo-100">School year schedule management system</p>
+            <p className="relative z-10 text-sm text-white/80">School year schedule management system</p>
           </section>
 
-          <section className="p-8 md:p-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-              {getLoginType()}
-            </p>
-            <h2 className="mt-2 text-3xl font-semibold text-slate-900">
-              {getTitle()}
-            </h2>
-            <p className="mt-2 text-sm text-slate-600">Enter your account credentials to continue.</p>
+          {/* Right Panel with Login Form */}
+          <section className="p-8 md:p-10 lg:p-12">
+            <div className="mb-8 lg:hidden">
+              <div className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-slate-100">
+                <Image
+                  src="/images/logo.jpg"
+                  alt="Libertad National High School"
+                  width={48}
+                  height={48}
+                  className="object-cover"
+                />
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
+                {getLoginType()}
+              </p>
+              <h2 className="mt-2 text-3xl font-bold text-slate-900">
+                {getTitle()}
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">Enter your account credentials to continue.</p>
+            </div>
 
             <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-            <div>
-              <label htmlFor="identifier" className="mb-2 block text-sm font-medium text-slate-700">
-                {getLabel()}
-              </label>
-              <input
-                id="identifier"
-                type={isStudent ? "text" : "email"}
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                required
-                className="block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 outline-none transition focus:border-indigo-500"
-                placeholder={getPlaceholder()}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-700">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 outline-none transition focus:border-indigo-500"
-                placeholder="Enter your password"
-              />
-            </div>
-
-            {error && (
-              <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {error}
+              <div>
+                <label htmlFor="identifier" className="mb-2 block text-sm font-medium text-slate-700">
+                  {getLabel()}
+                </label>
+                <input
+                  id="identifier"
+                  type={isStudent ? "text" : "email"}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  required
+                  className="block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                  placeholder={getPlaceholder()}
+                />
               </div>
-            )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-indigo-700 px-4 py-3 font-semibold text-white transition hover:bg-indigo-600 disabled:opacity-60"
-            >
-              {loading ? "Signing in..." : getButtonText()}
-            </button>
-          </form>
+              <div>
+                <label htmlFor="password" className="mb-2 block text-sm font-medium text-slate-700">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                  placeholder="Enter your password"
+                />
+              </div>
 
-          <div className="mt-6 flex flex-col gap-3 text-sm text-slate-600">
-            <Link href="/login" className="font-semibold text-indigo-700 hover:text-indigo-600">
-              ← Back to role selection
-            </Link>
-            {isTeacher && (
-              <p>
-                New teacher?{" "}
-                <Link href="/signup" className="font-semibold text-indigo-700 hover:text-indigo-600">
-                  Create an account
-                </Link>
-              </p>
-            )}
-          </div>
+              {error && (
+                <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-xl bg-indigo-700 px-4 py-3 font-semibold text-white transition hover:bg-indigo-600 disabled:opacity-60"
+              >
+                {loading ? "Signing in..." : getButtonText()}
+              </button>
+            </form>
+
+            <div className="mt-6 flex flex-col gap-3 text-sm text-slate-600">
+              <Link href="/login" className="font-semibold text-indigo-700 hover:text-indigo-600">
+                ← Back to role selection
+              </Link>
+            </div>
           </section>
         </div>
       </div>

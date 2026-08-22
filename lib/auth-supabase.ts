@@ -162,10 +162,14 @@ export const authOptions: NextAuthOptions = {
             .eq("studentId", credentials.identifier)
             .maybeSingle();
 
-          if (student && student.User) {
+          const linkedUser = Array.isArray((student as any)?.User)
+            ? (student as any).User[0]
+            : (student as any)?.User;
+
+          if (student && linkedUser) {
             const isPasswordValid = await bcrypt.compare(
               credentials.password,
-              student.User.password
+              linkedUser.password
             );
 
             if (isPasswordValid) {
@@ -174,10 +178,10 @@ export const authOptions: NextAuthOptions = {
               }
 
               return {
-                id: student.User.id,
-                email: student.User.email,
+                id: linkedUser.id,
+                email: linkedUser.email,
                 studentId: student.studentId,
-                name: student.User.name,
+                name: linkedUser.name,
                 role: "STUDENT",
               };
             }

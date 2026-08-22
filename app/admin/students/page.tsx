@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 
 interface Section {
   id: string;
@@ -54,15 +54,17 @@ export default function StudentsPage() {
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
+      return;
+    }
+
+    if (status === "authenticated") {
+      fetchStudents();
+      fetchSections();
     }
   }, [status, router]);
 
-  useEffect(() => {
-    fetchStudents();
-    fetchSections();
-  }, []);
-
   async function fetchStudents() {
+    setLoading(true);
     try {
       const response = await fetch("/api/admin/students");
       if (response.ok) {
@@ -122,6 +124,12 @@ export default function StudentsPage() {
           gradeLevel: "",
           sectionId: "",
           password: "",
+          dateOfBirth: "",
+          gender: "",
+          phone: "",
+          address: "",
+          guardianName: "",
+          guardianPhone: "",
         });
         setEditingId(null);
         setShowForm(false);
@@ -161,6 +169,12 @@ export default function StudentsPage() {
       gradeLevel: student.gradeLevel,
       sectionId: student.sectionId,
       password: "",
+      dateOfBirth: "",
+      gender: "",
+      phone: "",
+      address: "",
+      guardianName: "",
+      guardianPhone: "",
     });
     setEditingId(student.id);
     setShowForm(true);
@@ -222,23 +236,15 @@ export default function StudentsPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <button
-              onClick={() => router.back()}
-              className="mb-4 px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm"
-            >
-              ← Back to Dashboard
-            </button>
-            <h1 className="text-4xl font-bold text-white mb-2">Student Management</h1>
-            <p className="text-slate-400">Manage students and enroll them in sections</p>
-          </div>
+        <div className="mb-8">
           <button
-            onClick={() => signOut()}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
+            onClick={() => router.back()}
+            className="mb-4 px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm"
           >
-            Sign Out
+            ← Back to Dashboard
           </button>
+          <h1 className="text-4xl font-bold text-white mb-2">Student Management</h1>
+          <p className="text-slate-400">Manage students and enroll them in sections</p>
         </div>
 
         {/* Search and Add Button */}
@@ -280,6 +286,20 @@ export default function StudentsPage() {
             {showBulkImport ? "Cancel" : "Bulk Import"}
           </button>
         </div>
+
+        {errorMessage && (
+          <div className="mb-6 rounded-lg border border-red-500 bg-red-500/10 p-4 text-sm text-red-200">
+            <div className="flex items-center justify-between gap-4">
+              <span>{errorMessage}</span>
+              <button
+                onClick={fetchStudents}
+                className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Form */}
         {showForm && (
@@ -452,15 +472,15 @@ export default function StudentsPage() {
           <div className="mb-8 p-6 bg-slate-800 rounded-lg border border-slate-700">
             <h2 className="text-2xl font-bold text-white mb-4">Bulk Import Students</h2>
             <p className="text-slate-400 mb-6">
-              Upload a CSV file with columns: name, email, grade, section
+              Upload a CSV or Excel file with columns: name, email, grade, section
             </p>
 
             <form onSubmit={handleBulkImport} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">CSV File *</label>
+                <label className="block text-sm font-medium text-slate-300 mb-2">CSV or Excel File *</label>
                 <input
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.xlsx,.xls"
                   onChange={(e) => setBulkImportFile(e.target.files?.[0] || null)}
                   className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-blue-500 file:bg-blue-600 file:text-white file:px-4 file:py-2 file:rounded file:border-0 file:cursor-pointer file:mr-4"
                   required
@@ -468,7 +488,7 @@ export default function StudentsPage() {
               </div>
 
               <div className="bg-slate-700/50 p-4 rounded-lg border border-slate-600">
-                <p className="text-sm text-slate-300 mb-3">CSV Format Example:</p>
+                <p className="text-sm text-slate-300 mb-3">CSV / Excel Format Example:</p>
                 <pre className="text-xs text-slate-400 overflow-x-auto">
                   name,email,grade,section{"\n"}
                   John Doe,john@school.edu,11,ABM-ARISTOTLE{"\n"}

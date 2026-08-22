@@ -18,6 +18,13 @@ type TimeSlotItem = {
   endTime: string;
 };
 
+type TimeSlotLookup = {
+  id: string;
+  day: string;
+  startTime: string;
+  endTime: string;
+};
+
 const demoSchedule: ScheduleItem[] = [
   {
     day: "Monday",
@@ -438,11 +445,11 @@ function getFallbackTemplates(track: string, sectionName: string): FallbackTempl
         "Statistics and Probability",
       ],
     },
-    "SOCRATES-BALUAT": {
+    "SOCRATES": {
       track: "STEM",
       teacherName: "Ms. BALUAT",
       teacherEmail: "baluat@school.edu",
-      templates: [ 
+      templates: [
         { day: "Monday", startTime: "07:45", endTime: "08:45", subject: "Disaster Readiness and Risk Reduction", room: "SHS-201", teacherName: "Ms. BALUAT", teacherEmail: "baluat@school.edu" },
         { day: "Monday", startTime: "08:45", endTime: "09:45", subject: "Health Optimization Program for Education 3", room: "SHS-201", teacherName: "Ms. LUSTRE", teacherEmail: "lustre@school.edu" },
         { day: "Monday", startTime: "10:00", endTime: "11:00", subject: "General Biology 2", room: "SHS-202", teacherName: "Ms. MONTEDERAMOS", teacherEmail: "montederamos@school.edu" },
@@ -450,6 +457,7 @@ function getFallbackTemplates(track: string, sectionName: string): FallbackTempl
         { day: "Monday", startTime: "13:00", endTime: "14:00", subject: "Statistics and Probability", room: "SHS-204", teacherName: "Ms. MAGALLANES", teacherEmail: "magallanes@school.edu" },
         { day: "Monday", startTime: "14:00", endTime: "15:00", subject: "Pagbasa at Pagsusuri ng Iba't Ibang Teksto Tungo sa Pananaliksik", room: "SHS-202", teacherName: "Ms. CAPILITAN", teacherEmail: "capilitan@school.edu" },
         { day: "Monday", startTime: "15:00", endTime: "16:00", subject: "Practical Research 1", room: "SHS-203", teacherName: "Ms. GALVE", teacherEmail: "galve@school.edu" },
+
         { day: "Tuesday", startTime: "07:45", endTime: "08:45", subject: "Disaster Readiness and Risk Reduction", room: "SHS-201", teacherName: "Ms. BALUAT", teacherEmail: "baluat@school.edu" },
         { day: "Tuesday", startTime: "08:45", endTime: "09:45", subject: "Understanding Culture, Society, and Politics", room: "SHS-201", teacherName: "Ms. BIBERA", teacherEmail: "bibera@school.edu" },
         { day: "Tuesday", startTime: "10:00", endTime: "11:00", subject: "Basic Calculus", room: "SHS-204", teacherName: "Ms. SABAYDAY", teacherEmail: "sabayday@school.edu" },
@@ -457,6 +465,7 @@ function getFallbackTemplates(track: string, sectionName: string): FallbackTempl
         { day: "Tuesday", startTime: "13:00", endTime: "14:00", subject: "Statistics and Probability", room: "SHS-204", teacherName: "Ms. MAGALLANES", teacherEmail: "magallanes@school.edu" },
         { day: "Tuesday", startTime: "14:00", endTime: "15:00", subject: "Pagbasa at Pagsusuri ng Iba't Ibang Teksto Tungo sa Pananaliksik", room: "SHS-202", teacherName: "Ms. CAPILITAN", teacherEmail: "capilitan@school.edu" },
         { day: "Tuesday", startTime: "15:00", endTime: "16:00", subject: "Practical Research 1", room: "SHS-203", teacherName: "Ms. GALVE", teacherEmail: "galve@school.edu" },
+
         { day: "Wednesday", startTime: "07:45", endTime: "08:45", subject: "Disaster Readiness and Risk Reduction", room: "SHS-201", teacherName: "Ms. BALUAT", teacherEmail: "baluat@school.edu" },
         { day: "Wednesday", startTime: "08:45", endTime: "09:45", subject: "Understanding Culture, Society, and Politics", room: "SHS-201", teacherName: "Ms. BIBERA", teacherEmail: "bibera@school.edu" },
         { day: "Wednesday", startTime: "10:00", endTime: "11:00", subject: "Basic Calculus", room: "SHS-204", teacherName: "Ms. SABAYDAY", teacherEmail: "sabayday@school.edu" },
@@ -464,6 +473,7 @@ function getFallbackTemplates(track: string, sectionName: string): FallbackTempl
         { day: "Wednesday", startTime: "13:00", endTime: "14:00", subject: "Statistics and Probability", room: "SHS-204", teacherName: "Ms. MAGALLANES", teacherEmail: "magallanes@school.edu" },
         { day: "Wednesday", startTime: "14:00", endTime: "15:00", subject: "Pagbasa at Pagsusuri ng Iba't Ibang Teksto Tungo sa Pananaliksik", room: "SHS-202", teacherName: "Ms. CAPILITAN", teacherEmail: "capilitan@school.edu" },
         { day: "Wednesday", startTime: "15:00", endTime: "16:00", subject: "Practical Research 1", room: "SHS-203", teacherName: "Ms. GALVE", teacherEmail: "galve@school.edu" },
+
         { day: "Thursday", startTime: "07:45", endTime: "08:45", subject: "Disaster Readiness and Risk Reduction", room: "SHS-201", teacherName: "Ms. BALUAT", teacherEmail: "baluat@school.edu" },
         { day: "Thursday", startTime: "08:45", endTime: "09:45", subject: "Understanding Culture, Society, and Politics", room: "SHS-201", teacherName: "Ms. BIBERA", teacherEmail: "bibera@school.edu" },
         { day: "Thursday", startTime: "10:00", endTime: "11:00", subject: "Basic Calculus", room: "SHS-204", teacherName: "Ms. SABAYDAY", teacherEmail: "sabayday@school.edu" },
@@ -471,12 +481,27 @@ function getFallbackTemplates(track: string, sectionName: string): FallbackTempl
         { day: "Thursday", startTime: "13:00", endTime: "14:00", subject: "Statistics and Probability", room: "SHS-204", teacherName: "Ms. MAGALLANES", teacherEmail: "magallanes@school.edu" },
         { day: "Thursday", startTime: "14:00", endTime: "15:00", subject: "Pagbasa at Pagsusuri ng Iba't Ibang Teksto Tungo sa Pananaliksik", room: "SHS-202", teacherName: "Ms. CAPILITAN", teacherEmail: "capilitan@school.edu" },
         { day: "Thursday", startTime: "15:00", endTime: "16:00", subject: "Practical Research 1", room: "SHS-203", teacherName: "Ms. GALVE", teacherEmail: "galve@school.edu" },
+
         { day: "Friday", startTime: "07:45", endTime: "08:45", subject: "Health Optimization Program for Education 3", room: "SHS-201", teacherName: "Ms. BALUAT", teacherEmail: "baluat@school.edu" },
         { day: "Friday", startTime: "08:45", endTime: "09:45", subject: "Understanding Culture, Society, and Politics", room: "SHS-201", teacherName: "Ms. BIBERA", teacherEmail: "bibera@school.edu" },
         { day: "Friday", startTime: "10:00", endTime: "11:00", subject: "Basic Calculus", room: "SHS-204", teacherName: "Ms. SABAYDAY", teacherEmail: "sabayday@school.edu" },
         { day: "Friday", startTime: "11:00", endTime: "12:00", subject: "Reading and Writing Skills", room: "SHS-203", teacherName: "Ms. NATULLA", teacherEmail: "natulla@school.edu" },
         { day: "Friday", startTime: "13:00", endTime: "14:00", subject: "General Biology 2", room: "SHS-202", teacherName: "Ms. MONTEDERAMOS", teacherEmail: "montederamos@school.edu" },
         { day: "Friday", startTime: "14:00", endTime: "15:00", subject: "General Biology 2", room: "SHS-202", teacherName: "Ms. MONTEDERAMOS", teacherEmail: "montederamos@school.edu" },
+      ],
+    },
+    "ERICKSON": {
+      track: "ABM",
+      teacherName: "Ms. ALBIA",
+      teacherEmail: "albia@school.edu",
+      baseSubjects: [
+        "Business Ethics and Social Responsibility",
+        "Principles of Marketing",
+        "Fundamentals of Accountancy, Business, and Management 1",
+        "Statistics and Probability",
+        "Practical Research 1",
+        "Creative Writing",
+        "Understanding Culture, Society, and Politics",
       ],
     },
     "ERICKSON-ALBIA": {
@@ -491,6 +516,20 @@ function getFallbackTemplates(track: string, sectionName: string): FallbackTempl
         "Practical Research 1",
         "Creative Writing",
         "Understanding Culture, Society, and Politics",
+      ],
+    },
+    "DEWEY": {
+      track: "ABM",
+      teacherName: "Ms. G-ONE",
+      teacherEmail: "g-one@school.edu",
+      baseSubjects: [
+        "Creative Writing",
+        "Fundamentals of Accountancy, Business, and Management 1",
+        "Principles of Marketing",
+        "Reading and Writing Skills",
+        "Practical Research 1",
+        "Business Ethics and Social Responsibility",
+        "Disciplines and Ideas in the Applied Social Sciences",
       ],
     },
     "DEWEY-G-ONE": {
@@ -609,7 +648,7 @@ function getFallbackTemplates(track: string, sectionName: string): FallbackTempl
   return templates[track] ?? templates.STEM;
 }
 
-function findTimeSlot(timeSlots: TimeSlotItem[], day: string, startTime: string, endTime: string) {
+function findTimeSlot(timeSlots: TimeSlotLookup[], day: string, startTime: string, endTime: string) {
   return timeSlots.find(
     (slot) => slot.day === day && slot.startTime === startTime && slot.endTime === endTime
   );
@@ -709,7 +748,7 @@ export async function GET() {
         return NextResponse.json({ message: "Student not found" }, { status: 404 });
       }
 
-      let schedule = await prisma.scheduleBlock.findMany({
+      let schedule: any[] = await prisma.scheduleBlock.findMany({
         where: {
           sectionId: student.sectionId,
         },
@@ -777,6 +816,12 @@ export async function GET() {
     const teacher = await prisma.teacher.findUnique({
       where: { userId: session.user.id },
       include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
         scheduleBlocks: {
           include: {
             subject: true,

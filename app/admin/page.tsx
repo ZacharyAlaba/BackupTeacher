@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import Timetable from "@/components/Timetable";
+
 
 interface Stats {
   teachers: number;
@@ -23,6 +23,7 @@ interface Section {
   id: string;
   name: string;
   gradeLevel: string;
+  track?: string;
   _count?: { students: number };
 }
 
@@ -37,6 +38,15 @@ interface Subject {
   id: string;
   name: string;
   gradeLevel: string;
+}
+
+interface Student {
+  id: string;
+  name: string;
+  email: string;
+  gradeLevel: string;
+  sectionId?: string;
+  section?: { id: string; name: string; gradeLevel: string };
 }
 
 interface Schedule {
@@ -76,7 +86,7 @@ export default function AdminDashboard() {
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [selectedTeacherForTimetable, setSelectedTeacherForTimetable] = useState<string>("");
+  const [students, setStudents] = useState<Student[]>([]);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>("");
@@ -86,6 +96,8 @@ export default function AdminDashboard() {
   const [alerts, setAlerts] = useState<SystemAlert[]>([]);
   const [sectionEnrollment, setSectionEnrollment] = useState<any[]>([]);
   const [csvRecords, setCsvRecords] = useState<Record<string, any> | null>(null);
+  const [gradeStats, setGradeStats] = useState<any[]>([]);
+  const [strandStats, setStrandStats] = useState<any[]>([]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -94,9 +106,19 @@ export default function AdminDashboard() {
   }, [status, router]);
 
   useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+      return;
+    }
+
+    if (status !== "authenticated") {
+      return;
+    }
+
     async function loadAllData() {
       try {
-        const [statsRes, teachersRes, sectionsRes, timeSlotsRes, subjectsRes, schedulesRes, auditRes] = await Promise.all([
+        setError("");
+        const [statsRes, teachersRes, sectionsRes, timeSlotsRes, subjectsRes, schedulesRes, auditRes, studentsRes] = await Promise.all([
           fetch("/api/admin/stats"),
           fetch("/api/admin/teachers"),
           fetch("/api/admin/sections"),
@@ -104,10 +126,20 @@ export default function AdminDashboard() {
           fetch("/api/admin/subjects"),
           fetch("/api/admin/schedules"),
           fetch("/api/admin/audit-log"),
+          fetch("/api/admin/students"),
         ]);
 
-        if (statsRes.ok) setStats(await statsRes.json());
-        if (teachersRes.ok) {
+        if (!statsRes.ok) {
+          const body = await statsRes.json().catch(() => ({}));
+          setError(body.error || "Failed to load stats");
+        } else {
+          setStats(await statsRes.json());
+        }
+
+        if (!teachersRes.ok) {
+          const body = await teachersRes.json().catch(() => ({}));
+          setError((prev) => prev || body.error || "Failed to load teachers");
+        } else {
           const data = await teachersRes.json();
           setTeachers(
             data.map((t: any) => ({
@@ -116,13 +148,39 @@ export default function AdminDashboard() {
             }))
           );
         }
-        if (sectionsRes.ok) {
+
+        if (!sectionsRes.ok) {
+          const body = await sectionsRes.json().catch(() => ({}));
+          setError((prev) => prev || body.error || "Failed to load sections");
+        } else {
           const data = await sectionsRes.json();
-          setSections(data);
+          setSections(data.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            gradeLevel: s.gradeLevel,
+            track: s.track,
+            _count: s._count,
+          })));
         }
-        if (timeSlotsRes.ok) setTimeSlots(await timeSlotsRes.json());
-        if (subjectsRes.ok) setSubjects(await subjectsRes.json());
-        if (schedulesRes.ok) {
+
+        if (!timeSlotsRes.ok) {
+          const body = await timeSlotsRes.json().catch(() => ({}));
+          setError((prev) => prev || body.error || "Failed to load time slots");
+        } else {
+          setTimeSlots(await timeSlotsRes.json());
+        }
+
+        if (!subjectsRes.ok) {
+          const body = await subjectsRes.json().catch(() => ({}));
+          setError((prev) => prev || body.error || "Failed to load subjects");
+        } else {
+          setSubjects(await subjectsRes.json());
+        }
+
+        if (!schedulesRes.ok) {
+          const body = await schedulesRes.json().catch(() => ({}));
+          setError((prev) => prev || body.error || "Failed to load schedules");
+        } else {
           const data = await schedulesRes.json();
           setSchedules(
             data.map((s: any) => ({
@@ -139,13 +197,33 @@ export default function AdminDashboard() {
             }))
           );
         }
-        if (auditRes.ok) {
+
+        if (!auditRes.ok) {
+          const body = await auditRes.json().catch(() => ({}));
+          setError((prev) => prev || body.error || "Failed to load audit log");
+        } else {
           setAuditLog(await auditRes.json());
+        }
+
+        if (!studentsRes.ok) {
+          const body = await studentsRes.json().catch(() => ({}));
+          setError((prev) => prev || body.error || "Failed to load students");
+        } else {
+          const studentData = await studentsRes.json();
+          setStudents(studentData.map((s: any) => ({
+            id: s.id,
+            name: s.name,
+            email: s.email,
+            gradeLevel: s.gradeLevel,
+            sectionId: s.sectionId,
+            section: s.section,
+          })));
         }
 
         setLastUpdated(new Date());
       } catch (error) {
         console.error("Failed to load data:", error);
+        setError("Failed to load admin dashboard data. Check console for details.");
       }
     }
 
@@ -161,13 +239,9 @@ export default function AdminDashboard() {
     })();
     const interval = setInterval(loadAllData, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [status, router]);
 
-  useEffect(() => {
-    if (!selectedTeacherForTimetable && teachers.length > 0) {
-      setSelectedTeacherForTimetable(teachers[0].id);
-    }
-  }, [teachers, selectedTeacherForTimetable]);
+
 
   // Calculate staff load and alerts
   useEffect(() => {
@@ -220,11 +294,11 @@ export default function AdminDashboard() {
     });
 
     // Check for empty sections
-    sections.forEach((section) => {
+    sections.forEach((section, index) => {
       const hasTeacher = schedules.some((s) => s.sectionId === section.id);
       if (!hasTeacher) {
         newAlerts.push({
-          id: `alert-section-${section.id}`,
+          id: `alert-section-${section.id ?? section.name ?? index}`,
           type: "warning",
           message: `${section.name} has no adviser assigned yet`,
           timestamp: new Date(),
@@ -247,17 +321,43 @@ export default function AdminDashboard() {
   useEffect(() => {
     const enrollment = sections.map((section) => {
       const capacity = section.gradeLevel === "G11" ? 50 : 45; // Typical class size
-      const enrolled = section._count?.students || 0;
+      // Count students actually enrolled in this specific section
+      const enrolled = students.filter(s => {
+        return s.sectionId === section.id || (s.section && s.section.id === section.id);
+      }).length;
       return {
         sectionId: section.id,
         sectionName: section.name,
+        gradeLevel: section.gradeLevel,
+        track: section.track,
         enrolled,
         capacity,
         percentage: Math.round((enrolled / capacity) * 100),
       };
     });
     setSectionEnrollment(enrollment);
-  }, [sections]);
+  }, [sections, students]);
+
+  // Calculate grade and strand statistics
+  useEffect(() => {
+    // Grade statistics - count students by grade level from students data
+    const gradeCount: Record<string, number> = {};
+    students.forEach((student) => {
+      const grade = student.gradeLevel || "Unknown";
+      gradeCount[grade] = (gradeCount[grade] || 0) + 1;
+    });
+    const grades = Object.entries(gradeCount).map(([label, value]) => ({ label, value }));
+    setGradeStats(grades);
+
+    // Strand statistics
+    const strandCount: Record<string, number> = {};
+    sections.forEach((section) => {
+      const strand = section.track || "Unknown";
+      strandCount[strand] = (strandCount[strand] || 0) + 1;
+    });
+    const strands = Object.entries(strandCount).map(([label, value]) => ({ label, value }));
+    setStrandStats(strands);
+  }, [sections, students]);
 
   if (status === "loading") {
     return (
@@ -267,26 +367,7 @@ export default function AdminDashboard() {
     );
   }
 
-  const selectedTeacherSchedules = selectedTeacherForTimetable
-    ? schedules.filter((schedule) => schedule.teacherId === selectedTeacherForTimetable)
-    : [];
 
-  const timetableSchedule = selectedTeacherSchedules.map((schedule) => ({
-    day: schedule.timeSlot.day,
-    timeSlot: `${schedule.timeSlot.startTime}-${schedule.timeSlot.endTime}`,
-    subject: schedule.subjectName,
-    section: schedule.sectionName,
-    room: schedule.room,
-  }));
-
-  const timetableSlots = Array.from(
-    new Map(
-      timeSlots.map((slot) => [
-        `${slot.startTime}-${slot.endTime}`,
-        { startTime: slot.startTime, endTime: slot.endTime },
-      ])
-    ).values()
-  ).sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   const getColorCode = (color: string) => {
     const colorMap: Record<string, string> = {
@@ -304,7 +385,7 @@ export default function AdminDashboard() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2">ACADEMIC YEAR 2025-26</p>
-          <h1 className="text-3xl font-bold text-white">Overview</h1>
+          <h1 className="text-3xl font-bold text-white">Dashboard</h1>
         </div>
         <button
           onClick={() => router.push("/admin/schedule-builder")}
@@ -403,46 +484,143 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Main Content Grid - Timetable and Stats */}
+        {/* Main Content Grid - Statistics and Alerts */}
         <div className="mt-6 grid gap-6 grid-cols-1 lg:grid-cols-3">
-          {/* Left: Teacher Timetable (2/3 width) */}
-          <div className="lg:col-span-2 rounded-lg border border-slate-700 bg-slate-800/50 p-5">
-            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-white">Teacher timetable</h2>
-                <p className="text-xs text-slate-400">Select a teacher to view their timetable</p>
-              </div>
-              <div className="w-full md:w-64">
-                <select
-                  value={selectedTeacherForTimetable}
-                  onChange={(e) => setSelectedTeacherForTimetable(e.target.value)}
-                  className="w-full rounded-lg border border-slate-600 bg-slate-700/50 px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-                >
-                  <option value="">Select teacher</option>
-                  {teachers.map((teacher) => (
-                    <option key={teacher.id} value={teacher.id}>
-                      {teacher.name}
-                    </option>
-                  ))}
-                </select>
+          {/* Left: Statistics Charts (2/3 width) */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Grade Distribution */}
+            <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-6">
+              <h2 className="text-sm font-bold text-white mb-6">Grade Distribution</h2>
+              <div className="flex flex-col items-center">
+                {gradeStats.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-12">No grade data available</p>
+                ) : (
+                  <div className="w-full">
+                    <div className="flex justify-center mb-8">
+                      <div className="relative" style={{ width: '220px', height: '220px' }}>
+                        <svg width="220" height="220" viewBox="0 0 220 220" className="drop-shadow-lg">
+                          {gradeStats.map((item, index) => {
+                            const total = gradeStats.reduce((sum, s) => sum + s.value, 0);
+                            const percentage = item.value / total;
+                            let startAngle = gradeStats.slice(0, index).reduce((sum, s) => sum + (s.value / total) * 360, 0);
+                            const endAngle = startAngle + percentage * 360;
+                            const colors = ['#3b82f6', '#ef4444'];
+                            const color = colors[index % colors.length];
+                            
+                            const radius = 65;
+                            const innerRadius = 45;
+                            const startAngleRad = (startAngle - 90) * (Math.PI / 180);
+                            const endAngleRad = (endAngle - 90) * (Math.PI / 180);
+                            
+                            const x1 = 110 + radius * Math.cos(startAngleRad);
+                            const y1 = 110 + radius * Math.sin(startAngleRad);
+                            const x2 = 110 + radius * Math.cos(endAngleRad);
+                            const y2 = 110 + radius * Math.sin(endAngleRad);
+                            const x3 = 110 + innerRadius * Math.cos(endAngleRad);
+                            const y3 = 110 + innerRadius * Math.sin(endAngleRad);
+                            const x4 = 110 + innerRadius * Math.cos(startAngleRad);
+                            const y4 = 110 + innerRadius * Math.sin(startAngleRad);
+                            
+                            const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+                            const d = `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${x4} ${y4} Z`;
+                            
+                            return <path key={index} d={d} fill={color} stroke="#0f172a" strokeWidth="2" />;
+                          })}
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <div className="text-2xl font-bold text-white">{gradeStats.reduce((sum, s) => sum + s.value, 0)}</div>
+                          <div className="text-xs text-slate-400 uppercase tracking-wider">Total</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 mt-6">
+                      {gradeStats.map((item, index) => {
+                        const colors = ['#3b82f6', '#ef4444'];
+                        const color = colors[index % colors.length];
+                        const total = gradeStats.reduce((sum, s) => sum + s.value, 0);
+                        const percentage = total > 0 ? ((item.value / total) * 100).toFixed(0) : '0';
+                        return (
+                          <div key={index} className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }}></div>
+                            <div>
+                              <div className="text-xs font-medium text-slate-200">{item.label}</div>
+                              <div className="text-xs text-slate-400">{percentage}%</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {!selectedTeacherForTimetable ? (
-              <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-8 text-center">
-                <svg className="w-12 h-12 text-slate-600 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <p className="text-sm text-slate-400">No teacher selected</p>
-                <p className="text-xs text-slate-500 mt-1">Use the dropdown to load their weekly schedule.</p>
+            {/* Strand Distribution */}
+            <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-6">
+              <h2 className="text-sm font-bold text-white mb-6">Strand Distribution</h2>
+              <div className="flex flex-col items-center">
+                {strandStats.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-12">No strand data available</p>
+                ) : (
+                  <div className="w-full">
+                    <div className="flex justify-center mb-8">
+                      <div className="relative" style={{ width: '220px', height: '220px' }}>
+                        <svg width="220" height="220" viewBox="0 0 220 220" className="drop-shadow-lg">
+                          {strandStats.map((item, index) => {
+                            const total = strandStats.reduce((sum, s) => sum + s.value, 0);
+                            const percentage = item.value / total;
+                            let startAngle = strandStats.slice(0, index).reduce((sum, s) => sum + (s.value / total) * 360, 0);
+                            const endAngle = startAngle + percentage * 360;
+                            const colors = ['#06b6d4', '#ec4899', '#10b981', '#f97316'];
+                            const color = colors[index % colors.length];
+                            
+                            const radius = 65;
+                            const innerRadius = 45;
+                            const startAngleRad = (startAngle - 90) * (Math.PI / 180);
+                            const endAngleRad = (endAngle - 90) * (Math.PI / 180);
+                            
+                            const x1 = 110 + radius * Math.cos(startAngleRad);
+                            const y1 = 110 + radius * Math.sin(startAngleRad);
+                            const x2 = 110 + radius * Math.cos(endAngleRad);
+                            const y2 = 110 + radius * Math.sin(endAngleRad);
+                            const x3 = 110 + innerRadius * Math.cos(endAngleRad);
+                            const y3 = 110 + innerRadius * Math.sin(endAngleRad);
+                            const x4 = 110 + innerRadius * Math.cos(startAngleRad);
+                            const y4 = 110 + innerRadius * Math.sin(startAngleRad);
+                            
+                            const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+                            const d = `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${x4} ${y4} Z`;
+                            
+                            return <path key={index} d={d} fill={color} stroke="#0f172a" strokeWidth="2" />;
+                          })}
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <div className="text-2xl font-bold text-white">{strandStats.reduce((sum, s) => sum + s.value, 0)}</div>
+                          <div className="text-xs text-slate-400 uppercase tracking-wider">Sections</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 mt-6">
+                      {strandStats.map((item, index) => {
+                        const colors = ['#06b6d4', '#ec4899', '#10b981', '#f97316'];
+                        const color = colors[index % colors.length];
+                        const total = strandStats.reduce((sum, s) => sum + s.value, 0);
+                        const percentage = total > 0 ? ((item.value / total) * 100).toFixed(0) : '0';
+                        return (
+                          <div key={index} className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }}></div>
+                            <div>
+                              <div className="text-xs font-medium text-slate-200">{item.label}</div>
+                              <div className="text-xs text-slate-400">{percentage}%</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
-            ) : timetableSlots.length === 0 ? (
-              <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-8 text-center">
-                <p className="text-slate-400">No time slots available yet.</p>
-              </div>
-            ) : (
-              <Timetable schedule={timetableSchedule} timeSlots={timetableSlots} />
-            )}
+            </div>
           </div>
 
           {/* Right: Staff Load & Alerts (1/3 width) */}
@@ -518,15 +696,28 @@ export default function AdminDashboard() {
         <div className="mt-8 rounded-lg border border-slate-700 bg-slate-800/50 p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-white">Section Enrollment</h3>
-            <button className="text-xs text-blue-400 hover:text-blue-300 transition">Grade 11 & 12</button>
+            <span className="text-xs text-slate-400">{sectionEnrollment.length} Sections</span>
           </div>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {sectionEnrollment.slice(0, 3).map((section) => (
-              <div key={section.sectionId} className="rounded-lg border border-slate-700 bg-slate-900/50 p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-slate-200">{section.sectionName}</span>
-                  <span className="text-xs text-slate-400">{section.enrolled}/{section.capacity}</span>
+            {sectionEnrollment.map((section) => (
+              <div key={section.sectionId} className="rounded-lg border border-slate-700 bg-slate-900/50 p-4 hover:bg-slate-900 transition">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <div className="text-xs font-semibold text-slate-200">{section.sectionName}</div>
+                    <div className="text-xs text-slate-400">{section.gradeLevel} • {section.track}</div>
+                  </div>
+                  <span className="text-sm font-bold text-blue-300">{section.enrolled}/{section.capacity}</span>
                 </div>
+                <div className="h-2 rounded-full bg-slate-700 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(section.percentage, 100)}%`,
+                      backgroundColor: section.percentage >= 100 ? '#ef4444' : section.percentage >= 80 ? '#f59e0b' : section.percentage >= 50 ? '#3b82f6' : '#10b981',
+                    }}
+                  />
+                </div>
+                <div className="text-xs text-slate-400 mt-2 text-right">{section.percentage}% full</div>
               </div>
             ))}
           </div>

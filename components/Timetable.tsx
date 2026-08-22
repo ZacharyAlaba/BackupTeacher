@@ -76,6 +76,39 @@ export default function Timetable({ schedule, timeSlots }: TimetableProps) {
     return normalized;
   }
 
+  function normalizeSubjectLabel(name: string) {
+    return (name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  }
+
+  function getSubjectDisplayLabel(subjectName: string) {
+    const normalized = normalizeSubjectLabel(subjectName);
+    const shortcutMap: Record<string, string> = {
+      PRACTICALRESEARCH1: "PR",
+      PR1: "PR",
+      READINGANDWRITINGSKILLS: "READING & WRITING",
+      READINGANDWRITING: "READING & WRITING",
+      READING: "READING & WRITING",
+      STATISTICSANDPROBABILITY: "STAT",
+      PHYSICALSCIENCE: "PhySci",
+      ELECTRICALINSTALLATIONANDMAINTENANCE: "EIM",
+      HEALTHOPTIMIZATIONPROGRAMFOREDUCATION3: "HOPE",
+      HOPEF: "HOPE",
+      HOPF: "HOPE",
+      DISASTERREADINESSANDRISKREDUCTION: "DRRR",
+      BEAUTYNAILANDCULTURE: "BNC",
+      HOUSEKEEPING: "HOUSEKEEPING",
+      FUNDAMENTALSOFACCOUNTANCYBUSINESSANDMANAGEMENT1: "FABM1",
+      FABM1: "FABM1",
+      PRINCIPLESOFMARKETING: "PM",
+      BUSINESSETHICSANDSOCIALRESPONSIBILITY: "BESR",
+      CREATIVEWRITING: "CW",
+      UNDERSTANDINGCULTURESOCIETYANDPOLITICS: "UCSP",
+      UCSP: "UCSP",
+    };
+
+    return shortcutMap[normalized] || subjectName;
+  }
+
   const getScheduleItem = (day: string, timeSlot: string) => {
     return schedule.find(
       (item) => item.day === day && item.timeSlot === timeSlot
@@ -85,13 +118,13 @@ export default function Timetable({ schedule, timeSlots }: TimetableProps) {
   return (
     <div className="overflow-x-auto">
       <div className="inline-block min-w-full align-middle">
-        <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-lg shadow-slate-950/40">
+        <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-lg shadow-slate-950/40 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
           <table className="min-w-full border-collapse text-sm">
             <thead>
               <tr>
                 <th
                   scope="col"
-                  className="sticky left-0 z-10 border border-slate-700 bg-slate-900 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-100"
+                  className="sticky left-0 z-10 border border-slate-700 bg-slate-900 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-100 light:border-slate-200 light:bg-slate-100 light:text-slate-700"
                 >
                   Time
                 </th>
@@ -99,7 +132,7 @@ export default function Timetable({ schedule, timeSlots }: TimetableProps) {
                   <th
                     key={day}
                     scope="col"
-                    className="min-w-[180px] border border-slate-700 bg-slate-900 px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.12em] text-slate-100"
+                    className="min-w-[180px] border border-slate-700 bg-slate-900 px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.12em] text-slate-100 light:border-slate-200 light:bg-slate-100 light:text-slate-700"
                   >
                     {day}
                   </th>
@@ -112,12 +145,12 @@ export default function Timetable({ schedule, timeSlots }: TimetableProps) {
                 return (
                   <tr
                     key={timeSlotKey}
-                    className={index % 2 === 0 ? "bg-slate-950" : "bg-slate-900"}
+                    className={index % 2 === 0 ? "bg-slate-950 light:bg-white" : "bg-slate-900 light:bg-slate-50"}
                   >
-                      <td className="sticky left-0 z-10 w-[130px] whitespace-nowrap border border-slate-700 bg-slate-900 px-3 py-3 text-xs font-semibold text-slate-200">
+                      <td className="sticky left-0 z-10 w-[130px] whitespace-nowrap border border-slate-700 bg-slate-900 px-3 py-3 text-xs font-semibold text-slate-200 light:border-slate-200 light:bg-slate-100 light:text-slate-700">
                       <div className="flex flex-col">
                         <span>{formatDisplayTime(slot.startTime)}</span>
-                        <span className="text-[10px] font-medium text-slate-500">to</span>
+                        <span className="text-[10px] font-medium text-slate-500 light:text-slate-400">to</span>
                         <span>{formatDisplayTime(slot.endTime)}</span>
                       </div>
                     </td>
@@ -127,7 +160,7 @@ export default function Timetable({ schedule, timeSlots }: TimetableProps) {
                       return (
                         <td
                           key={`${day}-${timeSlotKey}`}
-                          className="min-h-[88px] min-w-[180px] border border-slate-700 px-2 py-2 align-top"
+                          className="min-h-[88px] min-w-[180px] border border-slate-700 px-2 py-2 align-top light:border-slate-200"
                         >
                               {item ? (
                                 // determine if this item is a break or has a prefills style
@@ -138,8 +171,9 @@ export default function Timetable({ schedule, timeSlots }: TimetableProps) {
                                   const slotStart = slot.startTime;
                                   const matchedPrefill = prefillList.find((p) => p.day === item.day && p.startTime === slotStart);
 
-                                  const tileBg = matchedPrefill?.bg || (isBreak ? "bg-rose-300" : "bg-slate-800");
-                                  const tileText = matchedPrefill?.textColor || (isBreak ? "text-black" : "text-slate-100");
+                                  const tileBg = matchedPrefill?.bg || (isBreak ? "bg-rose-300" : "bg-slate-800 light:bg-slate-100");
+                                  const tileText = matchedPrefill?.textColor || (isBreak ? "text-black" : "text-slate-100 light:text-slate-800");
+                                  const displaySubject = getSubjectDisplayLabel(item.subject);
 
                                   // non-clickable for breaks
                                   if (isBreak) {
@@ -151,16 +185,16 @@ export default function Timetable({ schedule, timeSlots }: TimetableProps) {
                                   }
 
                                   return (
-                                    <div className={`h-full rounded-xl border border-slate-700 ${tileBg} p-3 shadow-sm shadow-slate-950/20 flex flex-col justify-between`}> 
+                                    <div className={`h-full rounded-xl border border-slate-700 light:border-slate-200 ${tileBg} p-3 shadow-sm shadow-slate-950/20 light:shadow-slate-200/50 flex flex-col justify-between`}> 
                                       <div>
                                         <div className={`mb-1 text-sm font-semibold leading-tight ${tileText}`}>
-                                          {item.subject}
+                                          {displaySubject}
                                         </div>
-                                        <div className="text-xs font-medium text-slate-300">
+                                        <div className="text-xs font-medium text-slate-300 light:text-slate-600">
                                           {item.section}
                                         </div>
                                         {item.room && (
-                                          <div className="mt-2 inline-block rounded bg-slate-900 px-2 py-1 text-[11px] text-slate-300">
+                                          <div className="mt-2 inline-block rounded bg-slate-900 px-2 py-1 text-[11px] text-slate-300 light:bg-slate-200 light:text-slate-700">
                                             Room {item.room}
                                           </div>
                                         )}
@@ -169,7 +203,7 @@ export default function Timetable({ schedule, timeSlots }: TimetableProps) {
                                   );
                                 })()
                               ) : (
-                                <div className="flex min-h-[72px] items-center justify-center text-xs text-slate-500">
+                                <div className="flex min-h-[72px] items-center justify-center text-xs text-slate-500 light:text-slate-400">
                                   Free
                                 </div>
                               )}

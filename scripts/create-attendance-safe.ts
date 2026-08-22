@@ -96,7 +96,10 @@ $$;`,
     try {
       await prisma.$executeRawUnsafe(block);
     } catch (err) {
-      console.warn("Block failed (non-fatal):", err.message || err);
+      console.warn(
+        "Block failed (non-fatal):",
+        err instanceof Error ? err.message : String(err)
+      );
     }
   }
   console.log("Attendance table and enum ensured (safe).\n");

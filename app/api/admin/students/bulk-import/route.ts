@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { generateStudentId } from "@/lib/studentIdGenerator";
 import bcrypt from "bcryptjs";
+import { parse } from "csv-parse/sync";
+import * as XLSX from "xlsx";
 
 interface BulkImportStudent {
   name: string;
@@ -32,6 +34,32 @@ interface ImportResult {
   }>;
 }
 
+async function parseImportRows(file: File): Promise<string[][]> {
+  const extension = file.name.split(".").pop()?.toLowerCase();
+
+  if (extension === "csv") {
+    const content = await file.text();
+    const records = parse(content, {
+      skip_empty_lines: true,
+      trim: true,
+    }) as Array<string[]>;
+
+    return records.map((row) => row.map((value) => String(value).trim()));
+  }
+
+  if (extension === "xlsx" || extension === "xls") {
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false }) as Array<Array<string | number | boolean | null>>;
+
+    return rows.map((row) => row.map((value) => String(value ?? "").trim()));
+  }
+
+  throw new Error("Only CSV and Excel files are supported");
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -47,20 +75,18 @@ export async function POST(request: Request) {
       return new Response(JSON.stringify({ error: "No file provided" }), { status: 400 });
     }
 
-    if (!file.name.endsWith(".csv")) {
-      return new Response(JSON.stringify({ error: "Only CSV files are supported" }), { status: 400 });
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    if (!extension || !["csv", "xlsx", "xls"].includes(extension)) {
+      return new Response(JSON.stringify({ error: "Only CSV and Excel files are supported" }), { status: 400 });
     }
 
-    // Read file content
-    const fileContent = await file.text();
-    const lines = fileContent.split("\n").filter((line) => line.trim());
+    const rows = await parseImportRows(file);
 
-    if (lines.length === 0) {
-      return new Response(JSON.stringify({ error: "CSV file is empty" }), { status: 400 });
+    if (rows.length === 0) {
+      return new Response(JSON.stringify({ error: "The selected file is empty" }), { status: 400 });
     }
 
-    // Parse CSV header (first line)
-    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+    const headers = rows[0].map((h) => h.trim().toLowerCase());
     const nameIndex = headers.indexOf("name");
     const emailIndex = headers.indexOf("email");
     const gradeLevelIndex = headers.indexOf("grade");
@@ -81,7 +107,9 @@ export async function POST(request: Request) {
 
     // Get all sections for lookup
     const sections = await prisma.section.findMany();
-    const sectionMap = new Map(sections.map((s) => [s.name.toLowerCase(), s.id]));
+    const sectionMap = new Map(
+      sections.map((s: { name: string; id: string }) => [s.name.toLowerCase(), s.id])
+    );
 
     const result: ImportResult = {
       success: 0,
@@ -90,10 +118,9 @@ export async function POST(request: Request) {
       created: [],
     };
 
-    // Process each data line
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = 1; i < rows.length; i++) {
       const row = i + 1;
-      const values = lines[i].split(",").map((v) => v.trim());
+      const values = rows[i];
 
       if (values.length < 4) continue;
 

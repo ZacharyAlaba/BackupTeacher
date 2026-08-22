@@ -30,15 +30,6 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Stats fetch error:", error);
-    
-    // Demo fallback
-    return NextResponse.json({
-      teachers: 12,
-      subjects: 18,
-      sections: 8,
-      timeSlots: 40,
-      schedules: 96,
-      students: 847,
-    });
+    return NextResponse.json({ error: "Failed to load stats" }, { status: 500 });
   }
 }

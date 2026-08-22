@@ -24,6 +24,22 @@ type StudentAttendanceResponse = {
   attendance: AttendanceRecord[];
 };
 
+type SubjectAttendanceSummary = {
+  subjectName: string;
+  teacherNames: string[];
+  counts: Record<string, number>;
+  total: number;
+};
+
+const statusLabels: Record<string, string> = {
+  PRESENT: "Present",
+  ABSENT: "Absent",
+  LATE: "Late",
+  LEFT_EARLY: "Left early",
+};
+
+const statusOrder = ["PRESENT", "ABSENT", "LATE", "LEFT_EARLY"];
+
 export default function StudentAttendancePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -71,11 +87,27 @@ export default function StudentAttendancePage() {
   }, [status]);
 
   const grouped = useMemo(() => {
-    const groups: Record<string, AttendanceRecord[]> = {};
+    const groups: Record<string, SubjectAttendanceSummary[]> = {};
     data?.attendance.forEach((a) => {
       const key = `${a.academicYear} - ${a.gradingPeriod}`;
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(a);
+      const subjectSummary = groups[key]?.find((summary) => summary.subjectName === a.subject.name);
+
+      if (subjectSummary) {
+        subjectSummary.counts[a.status] = (subjectSummary.counts[a.status] || 0) + 1;
+        subjectSummary.total += 1;
+        if (!subjectSummary.teacherNames.includes(a.teacher.user.name)) {
+          subjectSummary.teacherNames.push(a.teacher.user.name);
+        }
+        return;
+      }
+
+      groups[key] = groups[key] || [];
+      groups[key].push({
+        subjectName: a.subject.name,
+        teacherNames: [a.teacher.user.name],
+        counts: { [a.status]: 1 },
+        total: 1,
+      });
     });
     return groups;
   }, [data]);
@@ -114,7 +146,7 @@ export default function StudentAttendancePage() {
 
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-5">
-            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Records</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Attendance entries</p>
             <p className="mt-2 text-3xl font-semibold">{data.attendance.length}</p>
           </div>
           <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-5">
@@ -132,27 +164,37 @@ export default function StudentAttendancePage() {
                 <div className="mb-4 flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-semibold text-white">{group}</h2>
-                    <p className="text-sm text-slate-400">Attendance posted by teachers</p>
+                    <p className="text-sm text-slate-400">Status counts for each subject</p>
                   </div>
-                  <span className="rounded-full border border-slate-700 bg-slate-800 px-3 py-1 text-xs text-slate-300">{items.length} items</span>
+                  <span className="rounded-full border border-slate-700 bg-slate-800 px-3 py-1 text-xs text-slate-300">{items.length} subjects</span>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[760px]">
+                  <table className="w-full min-w-[620px]">
                     <thead>
                       <tr className="border-b border-slate-700 text-left text-xs uppercase tracking-[0.18em] text-slate-400">
                         <th className="py-3 pr-4">Subject</th>
                         <th className="py-3 pr-4">Teacher</th>
-                        <th className="py-3 pr-4">Status</th>
-                        <th className="py-3 pr-4">Remarks</th>
+                        <th className="py-3 pr-4">Attendance summary</th>
+                        <th className="py-3 pr-4">Total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {items.map((a) => (
-                        <tr key={a.id} className="border-b border-slate-800">
-                          <td className="py-4 pr-4 font-medium text-white">{a.subject.name}</td>
-                          <td className="py-4 pr-4 text-slate-300">{a.teacher.user.name}</td>
-                          <td className="py-4 pr-4 text-emerald-300 font-semibold">{a.status}</td>
-                          <td className="py-4 pr-4 text-slate-400">{a.remarks || "-"}</td>
+                      {items.map((summary) => (
+                        <tr key={summary.subjectName} className="border-b border-slate-800">
+                          <td className="py-4 pr-4 font-medium text-white">{summary.subjectName}</td>
+                          <td className="py-4 pr-4 text-slate-300">{summary.teacherNames.join(", ")}</td>
+                          <td className="py-4 pr-4">
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                              {statusOrder
+                                .filter((status) => summary.counts[status])
+                                .map((status) => (
+                                  <span key={status} className={status === "PRESENT" ? "font-semibold text-emerald-300" : "text-slate-300"}>
+                                    {statusLabels[status]}: {summary.counts[status]}
+                                  </span>
+                                ))}
+                            </div>
+                          </td>
+                          <td className="py-4 pr-4 font-semibold text-white">{summary.total}</td>
                         </tr>
                       ))}
                     </tbody>

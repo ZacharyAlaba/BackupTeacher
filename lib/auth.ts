@@ -1,5 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { createClient } from "@supabase/supabase-js";
 import { prisma } from "@/lib/prisma";
 import { authSecret } from "@/lib/authSecret";
 import bcrypt from "bcryptjs";
@@ -49,10 +50,10 @@ function authorizeDemoUser(identifier: string, password: string, role?: string) 
     return null;
   }
 
-  const demoUser = demoUsers.find((user) => 
+  const demoUser = demoUsers.find((user) =>
     user.email === identifier || user.studentId === identifier
   );
-  
+
   if (!demoUser || demoUser.password !== password) {
     return null;
   }
@@ -70,6 +71,32 @@ function authorizeDemoUser(identifier: string, password: string, role?: string) 
   };
 }
 
+function createSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceRole) {
+    return null;
+  }
+
+  const normalizedUrl = url.trim().toLowerCase();
+  const normalizedKey = serviceRole.trim().toLowerCase();
+
+  if (
+    normalizedUrl.includes("your-project") ||
+    normalizedUrl.includes("placeholder") ||
+    normalizedKey.includes("your") ||
+    normalizedKey.includes("placeholder") ||
+    normalizedKey.includes("changeme")
+  ) {
+    return null;
+  }
+
+  return createClient(url, serviceRole, {
+    auth: { persistSession: false },
+  });
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -84,7 +111,72 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        const supabase = createSupabaseAdmin();
+
         try {
+          if (supabase) {
+            const { data: user } = await supabase
+              .from("User")
+              .select("*")
+              .eq("email", credentials.identifier)
+              .maybeSingle();
+
+            if (user) {
+              const isPasswordValid = await bcrypt.compare(
+                credentials.password,
+                (user as { password?: string }).password || ""
+              );
+
+              if (isPasswordValid) {
+                if (
+                  credentials.role &&
+                  (credentials.role === "ADMIN" || credentials.role === "TEACHER" || credentials.role === "STUDENT") &&
+                  (user as { role?: string }).role !== credentials.role
+                ) {
+                  return null;
+                }
+
+                return {
+                  id: (user as { id: string }).id,
+                  email: (user as { email: string }).email,
+                  name: (user as { name: string }).name,
+                  role: (user as { role: "ADMIN" | "TEACHER" | "STUDENT" }).role,
+                };
+              }
+            }
+
+            const { data: student } = await supabase
+              .from("Student")
+              .select(`id, studentId, User(id, email, name, password, role)`)
+              .eq("studentId", credentials.identifier)
+              .maybeSingle();
+
+            const linkedUser = Array.isArray((student as any)?.User)
+              ? (student as any).User[0]
+              : (student as any)?.User;
+
+            if (student && linkedUser) {
+              const isPasswordValid = await bcrypt.compare(
+                credentials.password,
+                linkedUser.password || ""
+              );
+
+              if (isPasswordValid) {
+                if (credentials.role && credentials.role !== "STUDENT") {
+                  return null;
+                }
+
+                return {
+                  id: linkedUser.id,
+                  email: linkedUser.email,
+                  studentId: student.studentId,
+                  name: linkedUser.name,
+                  role: "STUDENT",
+                };
+              }
+            }
+          }
+
           // Try to find by email first (admin/teacher)
           const user = await prisma.user.findUnique({
             where: { email: credentials.identifier },

@@ -41,6 +41,7 @@ model Teacher {
   gradeRecords    GradeRecord[]
   attendanceRecords AttendanceRecord[]
   qualifications  TeacherQualification[]
+  subjectStudents SubjectStudent[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
@@ -61,6 +62,7 @@ model Student {
   guardianPhone   String?
   gradeRecords    GradeRecord[]
   attendanceRecords AttendanceRecord[]
+  subjectEnrollments SubjectStudent[]
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
@@ -74,6 +76,7 @@ model Subject {
   gradeRecords   GradeRecord[]
   attendanceRecords AttendanceRecord[]
   qualifications TeacherQualification[]
+  studentEnrollments SubjectStudent[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 }
@@ -97,8 +100,28 @@ model Section {
   students       Student[]
   gradeRecords   GradeRecord[]
   attendanceRecords AttendanceRecord[]
+  subjectStudents SubjectStudent[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
+}
+
+// Student enrollment in a subject (managed by teacher)
+model SubjectStudent {
+  id             String   @id @default(cuid())
+  studentId      String
+  student        Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subjectId      String
+  subject        Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  sectionId      String
+  section        Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  teacherId      String
+  teacher        Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([studentId, subjectId, sectionId, teacherId])
+  @@index([teacherId, subjectId])
+  @@index([studentId, subjectId])
 }
 
 model GradeRecord {
@@ -126,6 +149,7 @@ enum AttendanceStatus {
   PRESENT
   ABSENT
   LATE
+  LEFT_EARLY
 }
 
 model AttendanceRecord {
@@ -140,12 +164,13 @@ model AttendanceRecord {
   section        Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   gradingPeriod  String   // e.g. Quarter 1, Quarter 2
   academicYear   String   // e.g. 2026-2027
+  date           String   // e.g. 2026-08-17
   status         AttendanceStatus
   remarks        String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  @@unique([studentId, subjectId, gradingPeriod, academicYear])
+  @@unique([studentId, subjectId, gradingPeriod, academicYear, date])
   @@index([sectionId, subjectId])
 }
 
@@ -178,4 +203,17 @@ model TeacherQualification {
   updatedAt  DateTime @updatedAt
 
   @@unique([teacherId, subjectId])
+}
+
+// OTP for 2FA login
+model OTP {
+  id        String   @id @default(cuid())
+  email     String
+  code      String   @unique
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
 }

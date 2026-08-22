@@ -2,6 +2,7 @@
 
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function AdminHeader() {
   const { data: session } = useSession();
@@ -13,8 +14,14 @@ export default function AdminHeader() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">
-                LS
+              <div className="h-10 w-10 rounded-lg overflow-hidden flex items-center justify-center bg-white">
+                <Image
+                  src="/images/logo.jpg"
+                  alt="Libertad NHS Logo"
+                  width={40}
+                  height={40}
+                  className="object-cover"
+                />
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">

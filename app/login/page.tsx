@@ -1,68 +1,105 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function LoginPage() {
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
-      <div className="mx-auto flex min-h-screen w-full max-w-6xl items-center px-4 py-10 md:px-8">
-        <div className="grid w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl lg:grid-cols-2">
-          <section className="flex flex-col justify-between bg-indigo-700 p-8 text-white md:p-10">
-            <div>
-              <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 text-2xl font-bold">
-                LN
+      <div className="mx-auto flex min-h-screen w-full items-center px-4 py-10 md:px-8">
+        <div className="grid w-full overflow-hidden rounded-3xl bg-white shadow-2xl lg:grid-cols-2">
+          {/* Left Panel with Background Image */}
+          <section 
+            className="relative hidden flex-col justify-between p-8 text-white md:flex md:p-10 lg:p-12"
+            style={{
+              backgroundImage: "url('/images/libertad.jpg')",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          >
+            {/* Dark overlay */}
+            <div className="absolute inset-0 bg-black/50"></div>
+            
+            <div className="relative z-10">
+              <div className="inline-flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-white/10 backdrop-blur">
+                <Image
+                  src="/images/logo.jpg"
+                  alt="Libertad National High School"
+                  width={80}
+                  height={80}
+                  className="object-cover"
+                />
               </div>
-              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-100">
+              <p className="mt-6 text-sm font-semibold uppercase tracking-[0.2em] text-white/90">
                 Libertad National High School
               </p>
-              <h1 className="mt-3 text-3xl font-semibold leading-tight md:text-4xl">
-                Senior High School Scheduling Portal
+              <h1 className="mt-3 text-4xl font-bold leading-tight">
+                Senior High School<br />Scheduling Portal
               </h1>
-              <p className="mt-4 max-w-md text-indigo-100">
+              <p className="mt-5 max-w-md text-white/90 leading-relaxed">
                 One place for Senior High School class scheduling, teacher assignment, and timetable access.
               </p>
             </div>
-            <p className="mt-8 text-sm text-indigo-100">School year schedule management system</p>
+            <p className="relative z-10 text-sm text-white/80">School year schedule management system</p>
           </section>
 
-          <section className="p-8 md:p-10">
-            <p className="text-sm font-medium text-slate-600">Choose login type</p>
-            <h2 className="mt-1 text-2xl font-semibold text-slate-900">Welcome back</h2>
-            <p className="mt-2 text-sm text-slate-600">Select the portal that matches your account.</p>
+          {/* Right Panel with Portal Selection */}
+          <section className="p-8 md:p-10 lg:p-12">
+            <div className="mb-8 lg:hidden">
+              <div className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-indigo-100">
+                <Image
+                  src="/images/logo.jpg"
+                  alt="Libertad National High School"
+                  width={48}
+                  height={48}
+                  className="object-cover"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <h2 className="text-3xl font-bold text-slate-900">WELCOME BACK!</h2>
+              <p className="mt-2 text-sm text-slate-600">Select the portal that matches your account.</p>
+            </div>
 
-            <div className="mt-8 space-y-4">
+            <div className="mt-10 space-y-4">
               <Link
                 href="/login/admin"
-                className="block rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:border-indigo-300"
+                className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-6 transition hover:border-indigo-400 hover:shadow-md"
               >
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-600">Admin Portal</p>
-                <p className="mt-1 text-lg font-semibold text-slate-900">Sign in as Administrator</p>
-                <p className="mt-1 text-sm text-slate-600">Manage sections, subject loads, and schedule assignments.</p>
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold">
+                  A
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-600">Admin Portal</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">Manage sections, subject loads, and schedule assignments</p>
+                </div>
               </Link>
 
               <Link
                 href="/login/teacher"
-                className="block rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:border-cyan-300"
+                className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-gradient-to-br from-cyan-50 to-cyan-100/50 p-6 transition hover:border-cyan-400 hover:shadow-md"
               >
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-600">Teacher Portal</p>
-                <p className="mt-1 text-lg font-semibold text-slate-900">Sign in as Teacher</p>
-                <p className="mt-1 text-sm text-slate-600">View your class schedules and weekly teaching load.</p>
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-600 text-white font-bold">
+                  T
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-600">Teacher Portal</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">View your class schedules and weekly teaching load</p>
+                </div>
               </Link>
 
               <Link
                 href="/login/student"
-                className="block rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:border-green-300"
+                className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-gradient-to-br from-green-50 to-green-100/50 p-6 transition hover:border-green-400 hover:shadow-md"
               >
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-600">Student Portal</p>
-                <p className="mt-1 text-lg font-semibold text-slate-900">Sign in as Student</p>
-                <p className="mt-1 text-sm text-slate-600">View your class schedule and enrolled sections.</p>
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-600 text-white font-bold">
+                  S
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-600">Student Portal</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">View your class schedule and enrolled sections</p>
+                </div>
               </Link>
             </div>
-
-            <p className="mt-7 text-sm text-slate-600">
-              New teacher?{" "}
-              <Link href="/signup" className="font-semibold text-indigo-700 hover:text-indigo-600">
-                Create an account
-              </Link>
-            </p>
           </section>
         </div>
       </div>

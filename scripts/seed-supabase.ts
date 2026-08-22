@@ -9,6 +9,7 @@ import { readFileSync } from "fs";
 import { parse } from "csv-parse/sync";
 import bcrypt from "bcryptjs";
 import { nanoid } from "nanoid";
+import ws from "ws";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -21,7 +22,10 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  realtime: { transport: ws as any },
+  auth: { persistSession: false },
+});
 
 async function seedDatabase() {
   try {
@@ -32,6 +36,7 @@ async function seedDatabase() {
     const adminPassword = await bcrypt.hash("admin123", 10);
     const adminUserId = nanoid();
 
+    const now = new Date().toISOString();
     const { error: adminUserError } = await supabase
       .from("User")
       .upsert(
@@ -42,6 +47,8 @@ async function seedDatabase() {
             password: adminPassword,
             name: "Admin User",
             role: "ADMIN",
+            createdAt: now,
+            updatedAt: now,
           },
         ],
         { onConflict: "email" }
@@ -55,7 +62,7 @@ async function seedDatabase() {
 
     // 2. Load and seed TimeSlots from CSV
     console.log("\n📝 Loading time slots from CSV...");
-    const timeSlotsCsv = readFileSync("data/time_slots.csv", "utf-8");
+    const timeSlotsCsv = readFileSync("../data/time_slots.csv", "utf-8");
     const timeSlots = parse(timeSlotsCsv, {
       columns: true,
       skip_empty_lines: true,
@@ -82,7 +89,7 @@ async function seedDatabase() {
 
     // 3. Load and seed Sections from CSV
     console.log("\n📝 Loading sections from CSV...");
-    const sectionsCsv = readFileSync("data/sections.csv", "utf-8");
+    const sectionsCsv = readFileSync("../data/sections.csv", "utf-8");
     const sections = parse(sectionsCsv, {
       columns: true,
       skip_empty_lines: true,
@@ -109,7 +116,7 @@ async function seedDatabase() {
 
     // 4. Load and seed Subjects from CSV
     console.log("\n📝 Loading subjects from CSV...");
-    const subjectsCsv = readFileSync("data/subjects.csv", "utf-8");
+    const subjectsCsv = readFileSync("../data/subjects.csv", "utf-8");
     const subjects = parse(subjectsCsv, {
       columns: true,
       skip_empty_lines: true,
@@ -148,6 +155,8 @@ async function seedDatabase() {
           password: teacherPassword,
           name: "John Teacher",
           role: "TEACHER",
+          createdAt: now,
+          updatedAt: now,
         },
       ]);
 
@@ -192,6 +201,8 @@ async function seedDatabase() {
             password: studentPassword,
             name: "Jane Student",
             role: "STUDENT",
+            createdAt: now,
+            updatedAt: now,
           },
         ]);
 

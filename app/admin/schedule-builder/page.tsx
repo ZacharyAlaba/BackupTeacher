@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signOut } from "next-auth/react";
 import MasterScheduleTable from "@/components/MasterScheduleTable";
 import Timetable from "@/components/Timetable";
 
@@ -348,23 +347,15 @@ export default function ScheduleBuilderPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <button
-              onClick={() => router.back()}
-              className="mb-4 px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm"
-            >
-              ← Back to Dashboard
-            </button>
-            <h1 className="text-4xl font-bold text-white mb-2">Schedule Builder</h1>
-            <p className="text-slate-400">Assign teachers to classes and manage schedules</p>
-          </div>
+        <div className="mb-8">
           <button
-            onClick={() => signOut()}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
+            onClick={() => router.back()}
+            className="mb-4 px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm"
           >
-            Logout
+            ← Back to Dashboard
           </button>
+          <h1 className="text-4xl font-bold text-white mb-2">Schedule Builder</h1>
+          <p className="text-slate-400">Assign teachers to classes and manage schedules</p>
         </div>
 
         <div className="mb-8 rounded-xl border border-slate-700 bg-slate-800 p-6">

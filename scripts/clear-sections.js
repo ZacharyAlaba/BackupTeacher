@@ -1,6 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
-
-const prisma = new PrismaClient();
+const { prisma } = require("../lib/prisma");
 
 (async () => {
   try {
@@ -10,6 +8,6 @@ const prisma = new PrismaClient();
     console.error("Error clearing sections:", error);
     process.exit(1);
   } finally {
-    await prisma.$disconnect();
+    // no disconnect needed for Supabase shim
   }
 })();

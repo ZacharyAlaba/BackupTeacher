@@ -84,7 +84,7 @@ export class SupabaseDB {
   async create<T>(table: string, data: Partial<T>): Promise<T> {
     const { data: result, error } = await this.client
       .from(table)
-      .insert([data])
+      .insert([data as any])
       .select()
       .single();
 

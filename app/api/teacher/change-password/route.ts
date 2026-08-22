@@ -1,5 +1,6 @@
 import { getServerSession } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -29,16 +30,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // In a real app, you'd hash and verify the password
-    // For now, we'll do a simple check
-    if (user.password !== currentPassword) {
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
       return NextResponse.json({ error: "Current password is incorrect" }, { status: 400 });
     }
 
     // Update password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({
       where: { id: user.id },
-      data: { password: newPassword },
+      data: { password: hashedPassword },
     });
 
     return NextResponse.json({ success: true });

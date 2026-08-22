@@ -1,24 +1,40 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
+import {
+  LayoutDashboard,
+  CalendarDays,
+  Users,
+  BookOpen,
+  Building2,
+  GraduationCap,
+  Clock,
+  BarChart3,
+  Database,
+  LogOut,
+  ShieldAlert,
+  type LucideIcon,
+} from "lucide-react";
 
 export default function AdminSidebar() {
   const router = useRouter();
 
-  const navItems = [
-    { label: "Overview", href: "/admin", icon: "overview", color: "bg-blue-500" },
-    { label: "Schedule Builder", href: "/admin/schedule-builder", icon: "calendar", color: "bg-red-500" },
-    { label: "Teachers", href: "/admin/teachers", icon: "users", color: "bg-green-500" },
-    { label: "Subjects", href: "/admin/subjects", icon: "book", color: "bg-purple-500" },
-    { label: "Sections", href: "/admin/sections", icon: "building", color: "bg-yellow-500" },
-    { label: "Students", href: "/admin/students", icon: "graduation", color: "bg-cyan-500" },
+  const navItems: { label: string; href: string; icon: LucideIcon; color: string }[] = [
+    { label: "Dashboard", href: "/admin", icon: LayoutDashboard, color: "text-blue-400" },
+    { label: "Schedule Builder", href: "/admin/schedule-builder", icon: CalendarDays, color: "text-red-400" },
+    { label: "Teachers", href: "/admin/teachers", icon: Users, color: "text-green-400" },
+    { label: "Subjects", href: "/admin/subjects", icon: BookOpen, color: "text-purple-400" },
+    { label: "Sections", href: "/admin/sections", icon: Building2, color: "text-yellow-400" },
+    { label: "Students", href: "/admin/students", icon: GraduationCap, color: "text-cyan-400" },
+    { label: "Conflicts", href: "/admin/conflicts", icon: ShieldAlert, color: "text-orange-400" },
   ];
 
-  const settingsItems = [
-    { label: "Time Slots", href: "/admin/time-slots", icon: "clock", color: "bg-indigo-500" },
-    { label: "Workload", href: "/admin/workload", icon: "chart", color: "bg-pink-500" },
+  const settingsItems: { label: string; href: string; icon: LucideIcon; color: string }[] = [
+    { label: "Time Slots", href: "/admin/time-slots", icon: Clock, color: "text-indigo-400" },
+    { label: "Workload", href: "/admin/workload", icon: BarChart3, color: "text-pink-400" },
   ];
 
   return (
@@ -26,7 +42,15 @@ export default function AdminSidebar() {
       <div className="sticky top-6 w-64 rounded-lg border border-slate-700 bg-slate-800 p-4">
         {/* Logo */}
         <div className="mb-6 flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm">LS</div>
+          <div className="h-8 w-8 rounded-lg overflow-hidden flex items-center justify-center bg-white">
+            <Image
+              src="/images/logo.jpg"
+              alt="Libertad NHS Logo"
+              width={32}
+              height={32}
+              className="object-cover"
+            />
+          </div>
         </div>
 
         {/* Admin User Badge */}
@@ -45,7 +69,7 @@ export default function AdminSidebar() {
                 href={item.href}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/50 transition-all group"
               >
-                <span className={`w-2 h-2 rounded-full ${item.color}`}></span>
+                <item.icon className={`h-4 w-4 ${item.color}`} />
                 {item.label}
               </Link>
             ))}
@@ -62,7 +86,7 @@ export default function AdminSidebar() {
                 href={item.href}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/50 transition-all"
               >
-                <span className={`w-2 h-2 rounded-full ${item.color}`}></span>
+                <item.icon className={`h-4 w-4 ${item.color}`} />
                 {item.label}
               </Link>
             ))}
@@ -72,16 +96,18 @@ export default function AdminSidebar() {
         {/* Bottom Actions */}
         <div className="border-t border-slate-700 pt-4 space-y-2">
           <button
-            onClick={() => router.push('/admin/teachers')}
-            className="w-full rounded-lg bg-slate-700/50 hover:bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition-all"
+            onClick={() => router.push('/admin/data')}
+            className="w-full flex items-center justify-center gap-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition-all"
           >
+            <Database className="h-4 w-4" />
             Manage Data
           </button>
 
           <button
             onClick={() => signOut({ callbackUrl: '/' })}
-            className="w-full rounded-lg border border-slate-700 hover:border-slate-600 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700/50 transition-all"
+            className="w-full flex items-center justify-center gap-2 rounded-lg border border-slate-700 hover:border-slate-600 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700/50 transition-all"
           >
+            <LogOut className="h-4 w-4" />
             Logout
           </button>
         </div>

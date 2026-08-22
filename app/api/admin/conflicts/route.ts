@@ -1,7 +1,17 @@
 import { getServerSession } from "next-auth";
+import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+type ScheduleWithRelations = Prisma.ScheduleBlockGetPayload<{
+  include: {
+    teacher: { include: { user: true } };
+    subject: true;
+    section: true;
+    timeSlot: true;
+  };
+}>;
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,7 +20,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const schedules = await prisma.scheduleBlock.findMany({
+    const schedules: ScheduleWithRelations[] = await prisma.scheduleBlock.findMany({
       include: {
         teacher: { include: { user: true } },
         subject: true,

@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
 
 const config: Config = {
   content: [
@@ -14,6 +15,12 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // Teacher pages are dark by default; add `light:` overrides that only kick in
+    // when a `.light` class is toggled on an ancestor (e.g. <html>).
+    plugin(({ addVariant }) => {
+      addVariant("light", ":is(.light &)");
+    }),
+  ],
 };
 export default config;

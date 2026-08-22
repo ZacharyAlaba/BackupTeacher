@@ -7,11 +7,24 @@ import path from "path";
 
 const daysOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
+type TimeSlotRecord = {
+  id: string;
+  day: string;
+  startTime: string;
+  endTime: string;
+  createdAt?: Date | null;
+  updatedAt?: Date;
+};
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function normalizeTimeSlot(slot: { day: string; startTime: string; endTime: string }) {
   return `${slot.day}:${slot.startTime}:${slot.endTime}`;
 }
 
-function sortTimeSlots(slots: Array<{ day: string; startTime: string }>) {
+function sortTimeSlots<T extends { day: string; startTime: string }>(slots: T[]): T[] {
   return slots.sort((a, b) => {
     const dayA = daysOrder.indexOf(a.day);
     const dayB = daysOrder.indexOf(b.day);
@@ -27,22 +40,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    let timeSlots: Array<{
-      id: string;
-      day: string;
-      startTime: string;
-      endTime: string;
-      createdAt?: Date | null;
-      updatedAt?: Date;
-    }> = await prisma.timeSlot.findMany({
+    let timeSlots: TimeSlotRecord[] = await prisma.timeSlot.findMany({
       orderBy: [{ day: "asc" }, { startTime: "asc" }],
     });
 
-    let csvTimeSlots = [];
+    let csvTimeSlots: TimeSlotRecord[] = [];
     try {
       csvTimeSlots = await loadTimeSlotsFromCsv();
     } catch (csvErr) {
-      console.error("Failed to load time slots from CSV:", csvErr?.message || csvErr);
+      console.error("Failed to load time slots from CSV:", getErrorMessage(csvErr));
     }
 
     if (timeSlots.length === 0) {
@@ -70,7 +76,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function loadTimeSlotsFromCsv() {
+async function loadTimeSlotsFromCsv(): Promise<TimeSlotRecord[]> {
   const csvPath = path.resolve(process.cwd(), "..", "data", "time_slots.csv");
   const raw = await fs.readFile(csvPath, "utf8");
   const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);

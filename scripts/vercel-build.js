@@ -17,14 +17,27 @@ function hasConfiguredDatabaseUrl() {
   return !databaseUrl.includes("username:password@host");
 }
 
+function isEnabled(flag) {
+  return String(flag).toLowerCase() === "true";
+}
+
 try {
-  if (hasConfiguredDatabaseUrl()) {
-    console.log("[build] DATABASE_URL detected. Running prisma db push...");
+  if (hasConfiguredDatabaseUrl() && isEnabled(process.env.RUN_DB_PUSH_ON_BUILD)) {
+    console.log("[build] RUN_DB_PUSH_ON_BUILD=true. Running prisma db push...");
     run("prisma db push");
-    console.log("[build] Seeding database from Prisma seed script...");
-    run("npm run db:seed");
+  } else if (hasConfiguredDatabaseUrl()) {
+    console.log("[build] DATABASE_URL detected. Skipping prisma db push (set RUN_DB_PUSH_ON_BUILD=true to enable).");
   } else {
     console.log("[build] No real DATABASE_URL configured. Skipping prisma db push.");
+  }
+
+  if (hasConfiguredDatabaseUrl() && isEnabled(process.env.RUN_DB_SEED_ON_BUILD)) {
+    console.log("[build] RUN_DB_SEED_ON_BUILD=true. Seeding database from Prisma seed script...");
+    run("npm run db:seed");
+  } else if (hasConfiguredDatabaseUrl()) {
+    console.log("[build] DATABASE_URL detected. Skipping db seed (set RUN_DB_SEED_ON_BUILD=true to enable).");
+  } else {
+    console.log("[build] No real DATABASE_URL configured. Skipping db seed.");
   }
 
   console.log("[build] Running next build...");

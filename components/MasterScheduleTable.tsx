@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 
 interface TimeSlot {
   id: string;
@@ -58,11 +58,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       const [schedulesRes, sectionsRes, timeSlotsRes, teachersRes, subjectsRes] = await Promise.all([
         fetch("/api/admin/schedules"),
@@ -86,7 +82,11 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     } finally {
       setLoading(false);
     }
-  }
+  }, [onSchedulesUpdate]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const allowedExtraSections = new Set(["PHYTAGORAS", "PDL"]);
   const fridayExtraSlot: TimeSlot = {
@@ -103,6 +103,10 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     return `${grade}:${track}:${name}`;
   }
 
+  function normalizeSectionName(name: string) {
+    return (name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  }
+
   // Get sections for selected grade
   const gradeSections = Array.from(
     new Map(
@@ -116,7 +120,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
   const effectiveTimeSlots = [...timeSlots];
   if (
     selectedGrade === "G11" &&
-    gradeSections.some((section) => allowedExtraSections.has(normalizeSectionKey(section))) &&
+    gradeSections.some((section) => allowedExtraSections.has(normalizeSectionName(section.name))) &&
     !effectiveTimeSlots.some((slot) => slot.day === "Friday" && slot.startTime === "17:00")
   ) {
     effectiveTimeSlots.push(fridayExtraSlot);
@@ -144,6 +148,81 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     );
   }
 
+  function makeImagePrefill(rows: Record<string, string[]>) {
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+    return Object.entries(rows).flatMap(([startTime, labels]) =>
+      days.flatMap((day, dayIndex) => {
+        const label = labels[dayIndex];
+        if (!label) return [];
+
+        const normalizedLabel = normalizeSubjectLabel(label);
+        const style = normalizedLabel.includes("STAT") || normalizedLabel.includes("PRINCIPLESOFMKTG")
+          ? { bg: "bg-amber-300", textColor: "text-black" }
+          : normalizedLabel.includes("PAGBASA")
+          ? { bg: "bg-cyan-500", textColor: "text-black" }
+          : normalizedLabel.includes("HOPE") || normalizedLabel.includes("HRGP")
+          ? { bg: "bg-violet-700", textColor: "text-white" }
+          : normalizedLabel.includes("READING")
+          ? { bg: "bg-rose-200", textColor: "text-black" }
+          : normalizedLabel.includes("DRRR")
+          ? { bg: "bg-blue-800", textColor: "text-white" }
+          : normalizedLabel.includes("GENBIO")
+          ? { bg: "bg-emerald-800", textColor: "text-white" }
+          : normalizedLabel.includes("GENPHY")
+          ? { bg: "bg-green-500", textColor: "text-black" }
+          : normalizedLabel === "PR" || normalizedLabel === "PR1"
+          ? { bg: "bg-red-600", textColor: "text-white" }
+          : normalizedLabel.includes("UCSP")
+          ? { bg: "bg-lime-400", textColor: "text-black" }
+          : normalizedLabel.includes("EAPP")
+          ? { bg: "bg-green-700", textColor: "text-white" }
+          : normalizedLabel.includes("MIL")
+          ? { bg: "bg-sky-100", textColor: "text-black" }
+          : normalizedLabel.includes("PERDEV")
+          ? { bg: "bg-yellow-300", textColor: "text-black" }
+          : normalizedLabel === "PERD"
+          ? { bg: "bg-yellow-300", textColor: "text-black" }
+          : normalizedLabel.includes("IMMERSION")
+          ? { bg: "bg-teal-800", textColor: "text-white" }
+          : normalizedLabel.includes("TRENDS")
+          ? { bg: "bg-cyan-500", textColor: "text-black" }
+          : normalizedLabel.includes("CAREERADV")
+          ? { bg: "bg-yellow-400", textColor: "text-black" }
+          : normalizedLabel.includes("CENIZA")
+          ? { bg: "bg-yellow-600", textColor: "text-black" }
+          : normalizedLabel.includes("REYES")
+          ? { bg: "bg-purple-600", textColor: "text-white" }
+          : normalizedLabel.includes("3IS")
+          ? { bg: "bg-red-800", textColor: "text-white" }
+          : normalizedLabel.includes("FBS")
+          ? { bg: "bg-blue-950", textColor: "text-white" }
+          : normalizedLabel.includes("BESR")
+          ? { bg: "bg-amber-900", textColor: "text-white" }
+          : normalizedLabel.includes("EIM")
+          ? { bg: "bg-slate-200", textColor: "text-black" }
+          : normalizedLabel.includes("RESCAP")
+          ? { bg: "bg-blue-600", textColor: "text-white" }
+          : normalizedLabel.includes("NONOI")
+          ? { bg: "bg-orange-300", textColor: "text-black" }
+          : normalizedLabel.includes("CARAD")
+          ? { bg: "bg-green-100", textColor: "text-black" }
+          : normalizedLabel.includes("BSI")
+          ? { bg: "bg-yellow-300", textColor: "text-black" }
+          : normalizedLabel.includes("CALCULUS")
+          ? { bg: "bg-white", textColor: "text-red-500" }
+          : normalizedLabel.includes("PHYSCI")
+          ? { bg: "bg-red-700", textColor: "text-white" }
+          : normalizedLabel.includes("FABM")
+          ? { bg: "bg-amber-100", textColor: "text-black" }
+          : normalizedLabel.includes("DIAS")
+          ? { bg: "bg-white", textColor: "text-black" }
+          : { bg: "bg-amber-950", textColor: "text-white" };
+
+        return [{ day, startTime, label, ...style }];
+      })
+    );
+  }
+
   // Prefill mapping from pasted image for specific sections (visual-only overlay)
   const imagePrefill: Record<
     string,
@@ -158,7 +237,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
       { day: "Friday", startTime: "13:00", label: "UCSP", bg: "bg-amber-700", textColor: "text-white" },
       { day: "Friday", startTime: "14:00", label: "PhySci", bg: "bg-lime-400", textColor: "text-black" },
       { day: "Friday", startTime: "15:00", label: "PAGBASA", bg: "bg-emerald-800", textColor: "text-white" },
-      { day: "Friday", startTime: "16:00", label: "HOPE F", bg: "bg-violet-700", textColor: "text-white" },
+      { day: "Friday", startTime: "16:00", label: "HOPE", bg: "bg-violet-700", textColor: "text-white" },
       { day: "Friday", startTime: "17:00", label: "PR1", bg: "bg-red-600", textColor: "text-white" },
     ],
     PDL: [
@@ -170,7 +249,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
       { day: "Friday", startTime: "14:00", label: "HOUSEKEEPING", bg: "bg-cyan-400", textColor: "text-black" },
       { day: "Friday", startTime: "15:00", label: "HOUSEKEEPING", bg: "bg-cyan-400", textColor: "text-black" },
       { day: "Friday", startTime: "16:00", label: "PhySci", bg: "bg-lime-400", textColor: "text-black" },
-      { day: "Friday", startTime: "17:00", label: "HOPE F", bg: "bg-violet-700", textColor: "text-white" },
+      { day: "Friday", startTime: "17:00", label: "HOPE", bg: "bg-violet-700", textColor: "text-white" },
     ],
     DESCARTES: [
       { day: "Monday", startTime: "07:45", label: "UCSP", bg: "bg-slate-500", textColor: "text-white" },
@@ -184,7 +263,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
       { day: "Thursday", startTime: "08:45", label: "READING & WRITING", bg: "bg-blue-600", textColor: "text-white" },
       { day: "Friday", startTime: "08:45", label: "PR1", bg: "bg-red-600", textColor: "text-white" },
       { day: "Monday", startTime: "10:00", label: "EIM", bg: "bg-pink-500", textColor: "text-white" },
-      { day: "Tuesday", startTime: "10:00", label: "HOPE F", bg: "bg-violet-700", textColor: "text-white" },
+      { day: "Tuesday", startTime: "10:00", label: "HOPE", bg: "bg-violet-700", textColor: "text-white" },
       { day: "Wednesday", startTime: "10:00", label: "EIM", bg: "bg-pink-500", textColor: "text-white" },
       { day: "Thursday", startTime: "10:00", label: "EIM", bg: "bg-pink-500", textColor: "text-white" },
       { day: "Friday", startTime: "10:00", label: "EIM", bg: "bg-pink-500", textColor: "text-white" },
@@ -207,7 +286,43 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
       { day: "Tuesday", startTime: "15:00", label: "STAT", bg: "bg-pink-300", textColor: "text-black" },
       { day: "Wednesday", startTime: "15:00", label: "PAGBASA", bg: "bg-emerald-800", textColor: "text-white" },
       { day: "Thursday", startTime: "15:00", label: "PR1", bg: "bg-red-600", textColor: "text-white" },
-      { day: "Friday", startTime: "15:00", label: "HOPE F", bg: "bg-violet-700", textColor: "text-white" },
+      { day: "Friday", startTime: "15:00", label: "HOPE", bg: "bg-violet-700", textColor: "text-white" },
+    ],
+    DEWEY: [
+      { day: "Monday", startTime: "07:45", label: "EIM", bg: "bg-pink-500", textColor: "text-white" },
+      { day: "Tuesday", startTime: "07:45", label: "EIM", bg: "bg-pink-500", textColor: "text-white" },
+      { day: "Wednesday", startTime: "07:45", label: "EIM", bg: "bg-pink-500", textColor: "text-white" },
+      { day: "Thursday", startTime: "07:45", label: "EIM", bg: "bg-pink-500", textColor: "text-white" },
+      { day: "Friday", startTime: "07:45", label: "HRGP", bg: "bg-slate-500", textColor: "text-white" },
+      { day: "Monday", startTime: "08:45", label: "EIM", bg: "bg-pink-500", textColor: "text-white" },
+      { day: "Tuesday", startTime: "08:45", label: "EIM", bg: "bg-pink-500", textColor: "text-white" },
+      { day: "Wednesday", startTime: "08:45", label: "EIM", bg: "bg-pink-500", textColor: "text-white" },
+      { day: "Thursday", startTime: "08:45", label: "EIM", bg: "bg-pink-500", textColor: "text-white" },
+      { day: "Friday", startTime: "08:45", label: "PhySci", bg: "bg-lime-400", textColor: "text-black" },
+      { day: "Monday", startTime: "10:00", label: "STAT", bg: "bg-amber-300", textColor: "text-black" },
+      { day: "Tuesday", startTime: "10:00", label: "STAT", bg: "bg-amber-300", textColor: "text-black" },
+      { day: "Wednesday", startTime: "10:00", label: "PR", bg: "bg-rose-200", textColor: "text-black" },
+      { day: "Thursday", startTime: "10:00", label: "STAT", bg: "bg-amber-300", textColor: "text-black" },
+      { day: "Friday", startTime: "10:00", label: "STAT", bg: "bg-amber-300", textColor: "text-black" },
+      { day: "Monday", startTime: "11:00", label: "PhySci", bg: "bg-lime-400", textColor: "text-black" },
+      { day: "Tuesday", startTime: "11:00", label: "PR", bg: "bg-rose-200", textColor: "text-black" },
+      { day: "Wednesday", startTime: "11:00", label: "HOPE", bg: "bg-violet-700", textColor: "text-white" },
+      { day: "Thursday", startTime: "11:00", label: "PR", bg: "bg-rose-200", textColor: "text-black" },
+      { day: "Friday", startTime: "11:00", label: "PR", bg: "bg-rose-200", textColor: "text-black" },
+      { day: "Monday", startTime: "13:00", label: "PAGBASA", bg: "bg-emerald-800", textColor: "text-white" },
+      { day: "Tuesday", startTime: "13:00", label: "PAGBASA", bg: "bg-emerald-800", textColor: "text-white" },
+      { day: "Wednesday", startTime: "13:00", label: "READING & WRITING", bg: "bg-blue-600", textColor: "text-white" },
+      { day: "Thursday", startTime: "13:00", label: "PAGBASA", bg: "bg-emerald-800", textColor: "text-white" },
+      { day: "Friday", startTime: "13:00", label: "PAGBASA", bg: "bg-emerald-800", textColor: "text-white" },
+      { day: "Monday", startTime: "14:00", label: "READING & WRITING", bg: "bg-blue-600", textColor: "text-white" },
+      { day: "Tuesday", startTime: "14:00", label: "PhySci", bg: "bg-lime-400", textColor: "text-black" },
+      { day: "Wednesday", startTime: "14:00", label: "READING & WRITING", bg: "bg-blue-600", textColor: "text-white" },
+      { day: "Thursday", startTime: "14:00", label: "UCSP", bg: "bg-amber-700", textColor: "text-white" },
+      { day: "Friday", startTime: "14:00", label: "READING & WRITING", bg: "bg-blue-600", textColor: "text-white" },
+      { day: "Monday", startTime: "15:00", label: "UCSP", bg: "bg-amber-700", textColor: "text-white" },
+      { day: "Tuesday", startTime: "15:00", label: "PhySci", bg: "bg-lime-400", textColor: "text-black" },
+      { day: "Wednesday", startTime: "15:00", label: "UCSP", bg: "bg-amber-700", textColor: "text-white" },
+      { day: "Thursday", startTime: "15:00", label: "UCSP", bg: "bg-amber-700", textColor: "text-white" },
     ],
     KANT: [
       { day: "Monday", startTime: "07:45", label: "PAGBASA", bg: "bg-amber-900", textColor: "text-white" },
@@ -222,7 +337,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
       { day: "Friday", startTime: "08:45", label: "PHYSCI", bg: "bg-lime-400", textColor: "text-black" },
       { day: "Monday", startTime: "10:00", label: "BNC", bg: "bg-rose-100", textColor: "text-black" },
       { day: "Tuesday", startTime: "10:00", label: "BNC", bg: "bg-rose-100", textColor: "text-black" },
-      { day: "Wednesday", startTime: "10:00", label: "HOPE F", bg: "bg-violet-700", textColor: "text-white" },
+      { day: "Wednesday", startTime: "10:00", label: "HOPE", bg: "bg-violet-700", textColor: "text-white" },
       { day: "Thursday", startTime: "10:00", label: "BNC", bg: "bg-rose-100", textColor: "text-black" },
       { day: "Friday", startTime: "10:00", label: "BNC", bg: "bg-rose-100", textColor: "text-black" },
       { day: "Monday", startTime: "11:00", label: "BNC", bg: "bg-rose-100", textColor: "text-black" },
@@ -245,7 +360,290 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
       { day: "Wednesday", startTime: "15:00", label: "READING & WRITING", bg: "bg-rose-200", textColor: "text-black" },
       { day: "Thursday", startTime: "15:00", label: "READING & WRITING", bg: "bg-rose-200", textColor: "text-black" },
     ],
+    ERICKSON: [
+      { day: "Monday", startTime: "07:45", label: "PR", bg: "bg-rose-200", textColor: "text-black" },
+      { day: "Monday", startTime: "08:45", label: "STAT", bg: "bg-amber-300", textColor: "text-black" },
+      { day: "Monday", startTime: "10:00", label: "HOPE", bg: "bg-violet-700", textColor: "text-white" },
+      { day: "Monday", startTime: "11:00", label: "UCSP", bg: "bg-amber-700", textColor: "text-white" },
+      { day: "Monday", startTime: "13:00", label: "READING & WRITING", bg: "bg-blue-600", textColor: "text-white" },
+      { day: "Monday", startTime: "14:00", label: "BNC", bg: "bg-teal-700", textColor: "text-white" },
+      { day: "Monday", startTime: "15:00", label: "BNC", bg: "bg-teal-700", textColor: "text-white" },
+      { day: "Tuesday", startTime: "07:45", label: "PR", bg: "bg-rose-200", textColor: "text-black" },
+      { day: "Tuesday", startTime: "08:45", label: "STAT", bg: "bg-amber-300", textColor: "text-black" },
+      { day: "Tuesday", startTime: "10:00", label: "PAGBASA", bg: "bg-emerald-800", textColor: "text-white" },
+      { day: "Tuesday", startTime: "11:00", label: "UCSP", bg: "bg-amber-700", textColor: "text-white" },
+      { day: "Tuesday", startTime: "13:00", label: "READING & WRITING", bg: "bg-blue-600", textColor: "text-white" },
+      { day: "Tuesday", startTime: "14:00", label: "BNC", bg: "bg-teal-700", textColor: "text-white" },
+      { day: "Tuesday", startTime: "15:00", label: "BNC", bg: "bg-teal-700", textColor: "text-white" },
+      { day: "Wednesday", startTime: "07:45", label: "PR", bg: "bg-rose-200", textColor: "text-black" },
+      { day: "Wednesday", startTime: "08:45", label: "STAT", bg: "bg-amber-300", textColor: "text-black" },
+      { day: "Wednesday", startTime: "10:00", label: "PhySci", bg: "bg-lime-400", textColor: "text-black" },
+      { day: "Wednesday", startTime: "11:00", label: "UCSP", bg: "bg-amber-700", textColor: "text-white" },
+      { day: "Wednesday", startTime: "13:00", label: "READING & WRITING", bg: "bg-blue-600", textColor: "text-white" },
+      { day: "Wednesday", startTime: "14:00", label: "BNC", bg: "bg-teal-700", textColor: "text-white" },
+      { day: "Wednesday", startTime: "15:00", label: "BNC", bg: "bg-teal-700", textColor: "text-white" },
+      { day: "Thursday", startTime: "07:45", label: "PR", bg: "bg-rose-200", textColor: "text-black" },
+      { day: "Thursday", startTime: "08:45", label: "PAGBASA", bg: "bg-emerald-800", textColor: "text-white" },
+      { day: "Thursday", startTime: "10:00", label: "PhySci", bg: "bg-lime-400", textColor: "text-black" },
+      { day: "Thursday", startTime: "11:00", label: "UCSP", bg: "bg-amber-700", textColor: "text-white" },
+      { day: "Thursday", startTime: "13:00", label: "READING & WRITING", bg: "bg-blue-600", textColor: "text-white" },
+      { day: "Thursday", startTime: "14:00", label: "BNC", bg: "bg-teal-700", textColor: "text-white" },
+      { day: "Thursday", startTime: "15:00", label: "BNC", bg: "bg-teal-700", textColor: "text-white" },
+      { day: "Friday", startTime: "07:45", label: "HRGP", bg: "bg-slate-500", textColor: "text-white" },
+      { day: "Friday", startTime: "08:45", label: "STAT", bg: "bg-amber-300", textColor: "text-black" },
+      { day: "Friday", startTime: "10:00", label: "PhySci", bg: "bg-lime-400", textColor: "text-black" },
+      { day: "Friday", startTime: "11:00", label: "PhySci", bg: "bg-lime-400", textColor: "text-black" },
+      { day: "Friday", startTime: "13:00", label: "PAGBASA", bg: "bg-emerald-800", textColor: "text-white" },
+      { day: "Friday", startTime: "14:00", label: "PAGBASA", bg: "bg-emerald-800", textColor: "text-white" },
+    ],
+    SOCRATES: [
+      { day: "Monday", startTime: "07:45", label: "DRRR", bg: "bg-slate-700", textColor: "text-white" },
+      { day: "Tuesday", startTime: "07:45", label: "DRRR", bg: "bg-slate-700", textColor: "text-white" },
+      { day: "Wednesday", startTime: "07:45", label: "DRRR", bg: "bg-slate-700", textColor: "text-white" },
+      { day: "Thursday", startTime: "07:45", label: "DRRR", bg: "bg-slate-700", textColor: "text-white" },
+      { day: "Friday", startTime: "07:45", label: "HRGP", bg: "bg-slate-700", textColor: "text-white" },
+
+      { day: "Monday", startTime: "08:45", label: "HOPE", bg: "bg-violet-700", textColor: "text-white" },
+      { day: "Tuesday", startTime: "08:45", label: "UCSP", bg: "bg-amber-700", textColor: "text-white" },
+      { day: "Wednesday", startTime: "08:45", label: "UCSP", bg: "bg-amber-700", textColor: "text-white" },
+      { day: "Thursday", startTime: "08:45", label: "UCSP", bg: "bg-amber-700", textColor: "text-white" },
+      { day: "Friday", startTime: "08:45", label: "UCSP", bg: "bg-amber-700", textColor: "text-white" },
+
+      { day: "Monday", startTime: "10:00", label: "General Biology 2", bg: "bg-emerald-900", textColor: "text-white" },
+      { day: "Tuesday", startTime: "10:00", label: "Basic Calculus", bg: "bg-white", textColor: "text-red-500" },
+      { day: "Wednesday", startTime: "10:00", label: "Basic Calculus", bg: "bg-white", textColor: "text-red-500" },
+      { day: "Thursday", startTime: "10:00", label: "Basic Calculus", bg: "bg-white", textColor: "text-red-500" },
+      { day: "Friday", startTime: "10:00", label: "Basic Calculus", bg: "bg-white", textColor: "text-red-500" },
+
+      { day: "Monday", startTime: "11:00", label: "Reading and Writing", bg: "bg-rose-700", textColor: "text-white" },
+      { day: "Tuesday", startTime: "11:00", label: "Reading and Writing", bg: "bg-rose-700", textColor: "text-white" },
+      { day: "Wednesday", startTime: "11:00", label: "General Biology 2", bg: "bg-emerald-900", textColor: "text-white" },
+      { day: "Thursday", startTime: "11:00", label: "Reading and Writing", bg: "bg-rose-700", textColor: "text-white" },
+      { day: "Friday", startTime: "11:00", label: "Reading and Writing", bg: "bg-rose-700", textColor: "text-white" },
+
+      { day: "Monday", startTime: "13:00", label: "STAT", bg: "bg-pink-400", textColor: "text-white" },
+      { day: "Tuesday", startTime: "13:00", label: "STAT", bg: "bg-pink-400", textColor: "text-white" },
+      { day: "Wednesday", startTime: "13:00", label: "STAT", bg: "bg-pink-400", textColor: "text-white" },
+      { day: "Thursday", startTime: "13:00", label: "STAT", bg: "bg-pink-400", textColor: "text-white" },
+      { day: "Friday", startTime: "13:00", label: "General Biology 2", bg: "bg-emerald-900", textColor: "text-white" },
+
+      { day: "Monday", startTime: "14:00", label: "PAGBASA", bg: "bg-emerald-800", textColor: "text-white" },
+      { day: "Tuesday", startTime: "14:00", label: "PAGBASA", bg: "bg-emerald-800", textColor: "text-white" },
+      { day: "Wednesday", startTime: "14:00", label: "PAGBASA", bg: "bg-emerald-800", textColor: "text-white" },
+      { day: "Thursday", startTime: "14:00", label: "PAGBASA", bg: "bg-emerald-800", textColor: "text-white" },
+      { day: "Friday", startTime: "14:00", label: "General Biology 2", bg: "bg-emerald-900", textColor: "text-white" },
+
+      { day: "Monday", startTime: "15:00", label: "PR1", bg: "bg-red-600", textColor: "text-white" },
+      { day: "Tuesday", startTime: "15:00", label: "PR1", bg: "bg-red-600", textColor: "text-white" },
+      { day: "Wednesday", startTime: "15:00", label: "PR1", bg: "bg-red-600", textColor: "text-white" },
+      { day: "Thursday", startTime: "15:00", label: "PR1", bg: "bg-red-600", textColor: "text-white" },
+    ],
+    LAOTZU: makeImagePrefill({
+      "07:45": ["STAT", "STAT", "STAT", "STAT", "HRGP"],
+      "08:45": ["PAGBASA", "HOPE", "PAGBASA", "PAGBASA", "PAGBASA"],
+      "10:00": ["READING & WRITING", "GEN BIO", "GEN BIO", "GEN BIO", "GEN BIO"],
+      "11:00": ["DRRR", "DRRR", "READING & WRITING", "DRRR", "DRRR"],
+      "13:00": ["PR1", "PR1", "PR1", "PR1", "READING & WRITING"],
+      "14:00": ["CALCULUS", "CALCULUS", "CALCULUS", "CALCULUS", "READING & WRITING"],
+      "15:00": ["UCSP", "UCSP", "UCSP", "UCSP", ""],
+    }),
+    LOCKE: makeImagePrefill({
+      "07:45": ["STAT", "STAT", "STAT", "STAT", "HRGP"],
+      "08:45": ["PR1", "PR1", "HOPE", "PR1", "PR1"],
+      "10:00": ["PHYSCI", "READING & WRITING", "READING & WRITING", "READING & WRITING", "READING & WRITING"],
+      "11:00": ["PAGBASA", "PHYSCI", "PAGBASA", "PAGBASA", "PAGBASA"],
+      "13:00": ["CREATIVE WRITING", "CREATIVE WRITING", "CREATIVE WRITING", "CREATIVE WRITING", "UCSP"],
+      "14:00": ["DRRR", "DRRR", "DRRR", "DRRR", "PHYSCI"],
+      "15:00": ["UCSP", "UCSP", "UCSP", "", "PHYSCI"],
+    }),
+    VOLTAIRE: makeImagePrefill({
+      "07:45": ["PAGBASA", "PAGBASA", "PAGBASA", "PAGBASA", "HRGP"],
+      "08:45": ["READING & WRITING", "READING & WRITING", "READING & WRITING", "READING & WRITING", "HOPE"],
+      "10:00": ["STAT", "PHYSCI", "PHYSCI", "PHYSCI", "PHYSCI"],
+      "11:00": ["STAT", "UCSP", "UCSP", "UCSP", "UCSP"],
+      "13:00": ["PR1", "PR1", "PR1", "STAT", "PR1"],
+      "14:00": ["CREATIVE WRITING", "CREATIVE WRITING", "CREATIVE WRITING", "CREATIVE WRITING", "STAT"],
+      "15:00": ["DRRR", "DRRR", "DRRR", "", "DRRR"],
+    }),
+    DEMOCRITUS: makeImagePrefill({
+      "07:45": ["CREATIVE WRITING", "CREATIVE WRITING", "CREATIVE WRITING", "CREATIVE WRITING", "HRGP"],
+      "08:45": ["PHYSCI", "PHYSCI", "PHYSCI", "HOPE", "PHYSCI"],
+      "10:00": ["STAT", "UCSP", "UCSP", "UCSP", "UCSP"],
+      "11:00": ["STAT", "PAGBASA", "PAGBASA", "PAGBASA", "PAGBASA"],
+      "13:00": ["DIAS", "DIAS", "DIAS", "STAT", "DIAS"],
+      "14:00": ["READING & WRITING", "READING & WRITING", "READING & WRITING", "READING & WRITING", "PR"],
+      "15:00": ["PR", "PR", "PR", "", "STAT"],
+    }),
+    HUME: makeImagePrefill({
+      "07:45": ["UCSP", "UCSP", "UCSP", "UCSP", "HRGP"],
+      "08:45": ["STAT", "STAT", "STAT", "DIAS", "STAT"],
+      "10:00": ["DIAS", "PHYSCI", "PHYSCI", "PHYSCI", "PHYSCI"],
+      "11:00": ["DIAS", "PR1", "PR1", "PR1", "PR1"],
+      "13:00": ["HOPE", "CREATIVE WRITING", "CREATIVE WRITING", "CREATIVE WRITING", "CREATIVE WRITING"],
+      "14:00": ["READING", "READING", "READING", "READING", "PAGBASA"],
+      "15:00": ["PAGBASA", "PAGBASA", "PAGBASA", "", "DIAS"],
+    }),
+    PLATO: makeImagePrefill({
+      "07:45": ["PAGBASA", "PAGBASA", "PAGBASA", "PAGBASA", "HRGP"],
+      "08:45": ["DIAS", "DIAS", "DIAS", "DIAS", "PHYSCI"],
+      "10:00": ["PHYSCI", "CREATIVE WRITING", "CREATIVE WRITING", "CREATIVE WRITING", "CREATIVE WRITING"],
+      "11:00": ["PHYSCI", "STAT", "STAT", "STAT", "STAT"],
+      "13:00": ["READING", "HOPE", "READING", "READING", "READING"],
+      "14:00": ["UCSP", "UCSP", "UCSP", "PR1", "UCSP"],
+      "15:00": ["PR1", "PR1", "PR1", "", "PHYSCI"],
+    }),
+    CONFUCIUS: makeImagePrefill({
+      "07:45": ["PR1", "PR1", "PR1", "PR1", "HRGP"],
+      "08:45": ["STAT", "STAT", "STAT", "STAT", "CREATIVE WRITING"],
+      "10:00": ["PHYSCI", "READING & WRITING", "READING & WRITING", "READING & WRITING", "READING & WRITING"],
+      "11:00": ["PHYSCI", "DIAS", "DIAS", "DIAS", "DIAS"],
+      "13:00": ["PAGBASA", "PAGBASA", "HOPE", "PAGBASA", "PAGBASA"],
+      "14:00": ["UCSP", "UCSP", "UCSP", "PHYSCI", "UCSP"],
+      "15:00": ["CREATIVE WRITING", "CREATIVE WRITING", "CREATIVE WRITING", "", "PHYSCI"],
+    }),
+    AURELIUS: makeImagePrefill({
+      "07:45": ["PAGBASA", "PAGBASA", "PAGBASA", "PAGBASA", "HRGP"],
+      "08:45": ["READING & WRITING", "READING & WRITING", "READING & WRITING", "CREATIVE WRITING", "READING & WRITING"],
+      "10:00": ["CREATIVE WRITING", "DIAS", "DIAS", "DIAS", "DIAS"],
+      "11:00": ["CREATIVE WRITING", "PHYSCI", "PHYSCI", "PHYSCI", "PHYSCI"],
+      "13:00": ["STAT", "STAT", "STAT", "HOPE", "STAT"],
+      "14:00": ["PR1", "PR1", "PR1", "PR1", "UCSP"],
+      "15:00": ["UCSP", "UCSP", "UCSP", "", "CREATIVE WRITING"],
+    }),
+    ARISTOTLE: makeImagePrefill({
+      "07:45": ["PRINCIPLES OF MKTG", "PRINCIPLES OF MKTG", "PRINCIPLES OF MKTG", "PRINCIPLES OF MKTG", "HRGP"],
+      "08:45": ["PAGBASA", "PAGBASA", "PAGBASA", "PR1", "PAGBASA"],
+      "10:00": ["PR1", "READING & WRITING", "READING & WRITING", "READING & WRITING", "READING & WRITING"],
+      "11:00": ["PR1", "STAT", "STAT", "STAT", "STAT"],
+      "13:00": ["UCSP", "UCSP", "UCSP", "UCSP", "HOPE"],
+      "14:00": ["FABM1", "FABM1", "FABM1", "FABM1", "PHYSCI"],
+      "15:00": ["PHYSCI", "PHYSCI", "PHYSCI", "", "PR1"],
+    }),
+    GRATITUDE: makeImagePrefill({
+      "07:45": ["", "", "", "", "FBS"],
+      "08:45": ["", "", "", "", "FBS"],
+      "10:00": ["", "", "", "", "PERDEV"],
+      "11:00": ["", "", "", "", "MIL"],
+      "13:00": ["", "", "", "", "IMMERSION"],
+      "14:00": ["", "", "", "", "EAPP"],
+      "15:00": ["", "", "", "", "3Is"],
+      "16:00": ["", "", "", "", "HOPE"],
+    }),
+    SIMPLICITY: makeImagePrefill({
+      "07:45": ["EIM", "EIM", "EIM", "HRGP", "EIM"],
+      "08:45": ["EIM", "EIM", "EIM", "HOPE", "EIM"],
+      "10:00": ["EAPP", "EAPP", "3Is", "EAPP", "EAPP"],
+      "11:00": ["3Is", "3Is", "MIL", "MIL", "3Is"],
+      "13:00": ["PERDEV", "PERDEV", "PERDEV", "PERDEV", "MIL"],
+      "14:00": ["IMMERSION", "IMMERSION", "IMMERSION", "IMMERSION", "MIL"],
+    }),
+    HONESTY: makeImagePrefill({
+      "07:45": ["IMMERSION", "IMMERSION", "IMMERSION", "IMMERSION", "HRGP"],
+      "08:45": ["PERDEV", "PERDEV", "PERDEV", "PERDEV", "EAPP"],
+      "10:00": ["FBS", "EAPP", "FBS", "FBS", "FBS"],
+      "11:00": ["FBS", "HOPE", "FBS", "FBS", "FBS"],
+      "13:00": ["MIL", "MIL", "MIL", "EAPP", "3Is"],
+      "14:00": ["3Is", "3Is", "MIL", "EAPP", "3Is"],
+    }),
+    HOPE: makeImagePrefill({
+      "07:45": ["PERDEV", "PERDEV", "PERDEV", "PERDEV", "HRGP"],
+      "08:45": ["IMMERSION", "IMMERSION", "HOPE", "IMMERSION", "IMMERSION"],
+      "10:00": ["EAPP", "MIL", "EAPP", "EAPP", "EAPP"],
+      "11:00": ["3Is", "MIL", "3Is", "3Is", "3Is"],
+      "13:00": ["FBS", "FBS", "FBS", "MIL", "FBS"],
+      "14:00": ["FBS", "FBS", "FBS", "MIL", "FBS"],
+    }),
+    TRIUMPH: makeImagePrefill({
+      "07:45": ["3Is", "3Is", "3Is", "3Is", "HRGP"],
+      "08:45": ["PERDEV", "RES.CAP", "RES.CAP", "RES.CAP", "RES.CAP"],
+      "10:00": ["GEN.Phy", "GEN.Phy", "PERDEV", "GEN.Phy", "GEN.Phy"],
+      "11:00": ["MIL", "MIL", "PERDEV", "MIL", "MIL"],
+      "13:00": ["EAPP", "EAPP", "EAPP", "PERDEV", "EAPP"],
+      "14:00": ["HOPE", "", "", "", ""],
+    }),
+    WISDOM: makeImagePrefill({
+      "07:45": ["RES.CAP", "RES.CAP", "RES.CAP", "RES.CAP", "HRGP"],
+      "08:45": ["GEN.Phy", "GEN.Phy", "GEN.Phy", "GEN.Phy", "MIL"],
+      "10:00": ["EAPP", "EAPP", "MIL", "EAPP", "EAPP"],
+      "11:00": ["PERDEV", "PERDEV", "MIL", "PERDEV", "PERDEV"],
+      "13:00": ["HOPE", "3Is", "3Is", "3Is", "3Is"],
+      "14:00": ["MIL", "", "", "", ""],
+    }),
+    HUMILITY: makeImagePrefill({
+      "07:45": ["EAPP", "EAPP", "EAPP", "EAPP", "HRGP"],
+      "08:45": ["DRRR", "DRRR", "DRRR", "MIL", "DRRR"],
+      "10:00": ["MIL", "PERDEV", "PERDEV", "PERDEV", "PERDEV"],
+      "11:00": ["FABM 2", "3Is", "FABM 2", "FABM 2", "FABM 2"],
+      "13:00": ["CAREER ADV", "CAREER ADV", "HOPE", "CAREER ADV", "CAREER ADV"],
+      "14:00": ["INTRO TO WORLD", "INTRO TO WORLD", "INTRO TO WORLD", "INTRO TO WORLD", "MIL"],
+      "15:00": ["3Is", "", "3Is", "3Is", "MIL"],
+    }),
+    FAITH: makeImagePrefill({
+      "07:45": ["CAREER ADV", "CAREER ADV", "CAREER ADV", "CAREER ADV", "HRGP"],
+      "08:45": ["EAPP", "EAPP", "EAPP", "DRRR", "EAPP"],
+      "10:00": ["INTRO TO WORLD", "INTRO TO WORLD", "DRRR", "INTRO TO WORLD", "INTRO TO WORLD"],
+      "11:00": ["PERDEV", "PERDEV", "DRRR", "PERDEV", "PERDEV"],
+      "13:00": ["FABM 2", "FABM 2", "FABM 2", "FABM 2", "HOPE"],
+      "14:00": ["3Is", "3Is", "MIL", "3Is", "3Is"],
+      "15:00": ["MIL", "", "MIL", "MIL", "DRRR"],
+    }),
+    LOVE: makeImagePrefill({
+      "07:45": ["TRENDS", "TRENDS", "TRENDS", "TRENDS", "HRGP"],
+      "08:45": ["CAREER ADV", "CAREER ADV", "3Is", "3Is", "CAREER ADV"],
+      "10:00": ["3Is", "PERDEV", "PERDEV", "PERDEV", "PERDEV"],
+      "11:00": ["EAPP", "EAPP", "3Is", "EAPP", "EAPP"],
+      "13:00": ["3Is", "MIL", "MIL", "MIL", "MIL"],
+      "14:00": ["", "HOPE", "", "", ""],
+    }),
+    CHARITY: makeImagePrefill({
+      "07:45": ["EAPP", "EAPP", "EAPP", "EAPP", "HRGP"],
+      "08:45": ["3Is", "3Is", "3Is", "TRENDS", "HOPE"],
+      "10:00": ["MIL", "MIL", "TRENDS", "MIL", "MIL"],
+      "11:00": ["PERDEV", "PERDEV", "TRENDS", "PERDEV", "PERDEV"],
+      "13:00": ["TRENDS", "CAREER ADV", "CAREER ADV", "CAREER ADV", "CAREER ADV"],
+      "14:00": ["", "", "", "3Is", ""],
+    }),
+    DILIGENCE: makeImagePrefill({
+      "07:45": ["MIL", "MIL", "MIL", "MIL", "HRGP"],
+      "08:45": ["TRENDS", "TRENDS", "TRENDS", "EAPP", "TRENDS"],
+      "10:00": ["PERDEV", "PERDEV", "PERDEV", "HOPE", "PERDEV"],
+      "11:00": ["CAREER ADV", "EAPP", "CAREER ADV", "CAREER ADV", "CAREER ADV"],
+      "13:00": ["EAPP", "3Is", "3Is", "3Is", "3Is"],
+      "14:00": ["EAPP", "", "", "", ""],
+    }),
+    PERSEVERANCE: makeImagePrefill({
+      "07:45": ["PERDEV", "PERDEV", "PERDEV", "PERDEV", "HRGP"],
+      "08:45": ["MIL", "MIL", "MIL", "MIL", "CAREER ADV"],
+      "10:00": ["EAPP", "EAPP", "HOPE", "EAPP", "EAPP"],
+      "11:00": ["3Is", "3Is", "CAREER ADV", "3Is", "3Is"],
+      "13:00": ["CAREER ADV", "TRENDS", "TRENDS", "TRENDS", "TRENDS"],
+      "14:00": ["CAREER ADV", "", "", "", ""],
+    }),
+    GENEROSITY: makeImagePrefill({
+      "07:45": ["EAPP", "EAPP", "EAPP", "EAPP", "HRGP"],
+      "08:45": ["PERDEV", "PERDEV", "PERDEV", "3Is", "PERDEV"],
+      "10:00": ["CAREER ADV", "HOPE", "CAREER ADV", "CAREER ADV", "CAREER ADV"],
+      "11:00": ["MIL", "MIL", "3Is", "MIL", "MIL"],
+      "13:00": ["3Is", "TRENDS", "TRENDS", "TRENDS", "TRENDS"],
+      "14:00": ["3Is", "", "", "", ""],
+    }),
+    PATIENCE: makeImagePrefill({
+      "07:45": ["PERDEV", "PERDEV", "PERDEV", "PERDEV", "HRGP"],
+      "08:45": ["BSI", "BSI", "BSI", "BSI", "BESR"],
+      "10:00": ["BESR", "BESR", "MIL", "MIL", "MIL"],
+      "11:00": ["EAPP", "EAPP", "HOPE", "EAPP", "EAPP"],
+      "13:00": ["MIL", "3Is", "3Is", "3Is", "3Is"],
+      "14:00": ["", "", "BESR", "", ""],
+    }),
   };
+
+  // Sections that should render assigned schedule blocks with neutral/default appearance
+  const neutralSections = new Set(["ERICKSON"]);
+
+  function isNeutralSection(sectionName: string) {
+    const key = (sectionName || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    return Array.from(neutralSections).some((s) => key.includes(s) || s.includes(key));
+  }
 
   function getImagePrefill(sectionName: string, day: string, startTime: string) {
     const fixedBreaks: Record<string, { label: string; bg: string; textColor: string; disableClick: boolean }> = {
@@ -258,8 +656,9 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     }
 
     const key = (sectionName || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-    const entries = imagePrefill[key];
-    if (!entries) return null;
+    const foundKey = Object.keys(imagePrefill).find((k) => key.includes(k) || k.includes(key));
+    if (!foundKey) return null;
+    const entries = imagePrefill[foundKey];
     return entries.find((e) => e.day === day && e.startTime === startTime) || null;
   }
 
@@ -267,7 +666,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     return (label || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
   }
 
-  function findSubjectIdForPrefill(label: string) {
+  function findSubjectIdForPrefill(label: string, gradeLevel?: string) {
     if (!label) return "";
 
     const normalizedLabel = normalizeSubjectLabel(label);
@@ -289,12 +688,89 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
       EIM: "Electrical Installation and Maintenance",
       HOPF: "Health Optimization Program for Education 3",
       HOPEF: "Health Optimization Program for Education 3",
-      HRGP: "Health Optimization Program for Education 3",
       BNC: "Beauty Nail and Culture",
       HOUSEKEEPING: "Housekeeping",
       PAGBASAAMORO: "Pagbasa at Pagsusuri ng Iba't Ibang Teksto Tungo sa Pananaliksik",
       PAGBASA: "Pagbasa at Pagsusuri ng Iba't Ibang Teksto Tungo sa Pananaliksik",
+      FAM: "Fundamentals of Accountancy, Business, and Management 1",
+      FABM1: "Fundamentals of Accountancy, Business, and Management 1",
+      FABM2: "Fundamentals of Accountancy, Business, and Management 2",
+      PM: "Principles of Marketing",
+      PRINCIPLESOFMKTG: "Principles of Marketing",
+      BESR: "Business Ethics and Social Responsibility",
+      CW: "Creative Writing",
+      DRRR: "Disaster Readiness and Risk Reduction",
+      DIAS: "Disciplines and Ideas in the Applied Social Sciences",
+      INTROTOWORLD: "Introduction to World Religions and Belief Systems",
+      FBS: "Food and Beverage Services",
+      PERDEV: "Personal Development",
+      MIL: "Media and Information Literacy",
+      IMMERSION: "Work Immersion",
+      EAPP: "English for Academic and Professional Purposes",
+      "3IS": "Inquiries, Investigations, and Immersion",
+      GENPHY: "General Physics 2",
+      RESCAP: "Research Capstone",
+      CAREERADV: "Career Advocacy",
+      TRENDS: "Trends, Networks, and Critical Thinking in the 21st Century",
+      BSI: "Business Simulation",
+      CALCULUS: "Basic Calculus",
+      BASICCALCULUS: "Basic Calculus",
+      CALC: "Basic Calculus",
+      GENBIO: "General Biology 2",
+      "GEN BIO": "General Biology 2",
+      "GEN. BIO": "General Biology 2",
+      "GENERAL BIO": "General Biology 2",
+      "GENERAL BIO 2": "General Biology 2",
     };
+
+    if (normalizedLabel === "HOPE") {
+      const hopeName = gradeLevel === "G12"
+        ? "Health Optimization Program for Education 4"
+        : "Health Optimization Program for Education 3";
+      const hopeSubject = subjects.find(
+        (subject) => normalizeSubjectLabel(subject.name) === normalizeSubjectLabel(hopeName)
+      );
+      if (hopeSubject) return hopeSubject.id;
+    }
+
+    if (normalizedLabel === "HRGP") {
+      const hrgpSubject = subjects.find(
+        (subject) => normalizeSubjectLabel(subject.name) === "HOMEROOMGUIDANCEPROGRAM"
+      );
+      if (hrgpSubject) return hrgpSubject.id;
+    }
+
+    const variantMap: Record<string, string[]> = {
+      FBS: ["Food and Beverage Services"],
+      RESCAP: ["Research Capstone", "Research/Capstone", "Research/Capstone Project"],
+      CAREERADV: ["Career Advocacy"],
+      IMMERSION: ["Work Immersion"],
+      BSI: ["Business Simulation"],
+    };
+
+    const variants = variantMap[normalizedLabel];
+    if (variants) {
+      const variantSubject = subjects.find((subject) =>
+        variants.some(
+          (variant) => normalizeSubjectLabel(subject.name) === normalizeSubjectLabel(variant)
+        )
+      );
+      if (variantSubject) return variantSubject.id;
+
+      const keywordMap: Record<string, string[]> = {
+        FBS: ["FOOD", "BEVERAGE"],
+        RESCAP: ["RESEARCH", "CAPSTONE"],
+        CAREERADV: ["CAREER", "ADVOCACY"],
+        IMMERSION: ["WORK", "IMMERSION"],
+        BSI: ["BUSINESS", "SIMULATION"],
+      };
+      const keywords = keywordMap[normalizedLabel] || [];
+      const keywordSubject = subjects.find((subject) => {
+        const normalizedName = normalizeSubjectLabel(subject.name);
+        return keywords.length > 0 && keywords.every((keyword) => normalizedName.includes(keyword));
+      });
+      if (keywordSubject) return keywordSubject.id;
+    }
 
     const alias = aliasMap[normalizedLabel];
     if (alias) {
@@ -313,6 +789,101 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     }
 
     return "";
+  }
+
+  function getSubjectDisplayLabel(subjectName: string) {
+    const normalizedSubject = normalizeSubjectLabel(subjectName);
+    const shortcutMap: Record<string, string> = {
+      PRACTICALRESEARCH1: "PR",
+      READINGANDWRITINGSKILLS: "READING & WRITING",
+      STATISTICSANDPROBABILITY: "STAT",
+      PHYSICALSCIENCE: "PhySci",
+      ELECTRICALINSTALLATIONANDMAINTENANCE: "EIM",
+      HEALTHOPTIMIZATIONPROGRAMFOREDUCATION3: "HOPE",
+      HEALTHOPTIMIZATIONPROGRAMFOREDUCATION4: "HOPE",
+      HOMEROOMGUIDANCEPROGRAM: "HRGP",
+      HOPF: "HOPE",
+      HOPEF: "HOPE",
+      DISASTERREADINESSANDRISKREDUCTION: "DRRR",
+      PERSONALDEVELOPMENT: "PERDEV",
+      MEDIAANDINFORMATIONLITERACY: "MIL",
+      WORKIMMERSIONCAREERADVOCACYCOUNSELINGANDPLACEMENTSUPPORT: "IMMERSION",
+      TRENDSNETWORKSANDCRITICALTHINKINGINTHE21STCENTURY: "TRENDS",
+      INQUIRIESINVESTIGATIONSANDIMMERSION: "3Is",
+      ENGLISHFORACADEMICANDPROFESSIONALPURPOSES: "EAPP",
+      GENERALPHYSICS2: "GEN.Phy",
+      INTRODUCTIONTOWORLDRELIGIONSANDBELIEFSYSTEMS: "INTRO TO WORLD",
+      BEAUTYNAILANDCULTURE: "BNC",
+      HOUSEKEEPING: "HOUSEKEEPING",
+      FUNDAMENTALSOFACCOUNTANCYBUSINESSANDMANAGEMENT1: "FABM1",
+      FUNDAMENTALSOFACCOUNTANCYBUSINESSANDMANAGEMENT2: "FABM",
+      PRINCIPLESOFMARKETING: "PM",
+      BUSINESSETHICSANDSOCIALRESPONSIBILITY: "BESR",
+      CREATIVEWRITING: "CW",
+    };
+
+    if (shortcutMap[normalizedSubject]) {
+      return shortcutMap[normalizedSubject];
+    }
+
+    if (normalizedSubject.includes("UNDERSTANDINGCULTURE")) {
+      return "UCSP";
+    }
+    if (normalizedSubject.includes("PAGBASA")) {
+      return "PAGBASA";
+    }
+    if (normalizedSubject.includes("READING")) {
+      return "READING & WRITING";
+    }
+    if (normalizedSubject.includes("FUNDAMENTALSOFACCOUNTANCY")) {
+      return "FAM";
+    }
+    if (normalizedSubject.includes("PRINCIPLESOFMARKETING")) {
+      return "PM";
+    }
+    if (normalizedSubject.includes("BUSINESSETHICS")) {
+      return "BESR";
+    }
+    if (normalizedSubject.includes("CREATIVEWRITING")) {
+      return "CW";
+    }
+    if (normalizedSubject.includes("DISCIPLINESANDIDEAS")) {
+      return "DIAS";
+    }
+
+    return subjectName;
+  }
+
+  function getSubjectColor(subjectName: string) {
+    const label = normalizeSubjectLabel(getSubjectDisplayLabel(subjectName));
+    if (label.includes("STAT")) return "bg-amber-300 text-black border-amber-500";
+    if (label.includes("PAGBASA")) return "bg-cyan-500 text-black border-cyan-700";
+    if (label.includes("HOPE") || label.includes("HRGP")) return "bg-violet-700 text-white border-violet-900";
+    if (label.includes("READING")) return "bg-rose-200 text-black border-rose-400";
+    if (label.includes("DRRR")) return "bg-pink-300 text-black border-pink-500";
+    if (label.includes("GENBIO") || label.includes("GENPHY")) return "bg-green-600 text-white border-green-800";
+    if (label === "PR" || label === "PR1") return "bg-red-600 text-white border-red-800";
+    if (label.includes("UCSP")) return "bg-lime-400 text-black border-lime-600";
+    if (label.includes("PHYSCI")) return "bg-red-700 text-white border-red-900";
+    if (label.includes("FABM") || label.includes("FAM")) return "bg-amber-100 text-black border-amber-300";
+    if (label.includes("PERDEV")) return "bg-yellow-300 text-black border-yellow-500";
+    if (label.includes("MIL")) return "bg-sky-100 text-black border-sky-300";
+    if (label.includes("EAPP")) return "bg-green-700 text-white border-green-900";
+    if (label.includes("IMMERSION")) return "bg-teal-800 text-white border-teal-950";
+    if (label.includes("TRENDS")) return "bg-cyan-500 text-black border-cyan-700";
+    if (label.includes("CAREERADV")) return "bg-yellow-400 text-black border-yellow-600";
+    if (label.includes("CENIZA")) return "bg-yellow-600 text-black border-yellow-800";
+    if (label.includes("REYES")) return "bg-purple-600 text-white border-purple-900";
+    if (label.includes("3IS")) return "bg-red-800 text-white border-red-950";
+    if (label.includes("FBS")) return "bg-blue-950 text-white border-blue-950";
+    if (label.includes("BESR")) return "bg-amber-900 text-white border-amber-950";
+    if (label.includes("INTROTOWORLD")) return "bg-yellow-600 text-black border-yellow-800";
+    if (label.includes("EIM")) return "bg-slate-200 text-black border-slate-400";
+    if (label.includes("RESCAP")) return "bg-blue-600 text-white border-blue-800";
+    if (label.includes("NONOI")) return "bg-orange-300 text-black border-orange-500";
+    if (label.includes("CARAD")) return "bg-green-100 text-black border-green-300";
+    if (label.includes("BSI")) return "bg-yellow-300 text-black border-yellow-500";
+    return "bg-gradient-to-br from-indigo-500/40 to-purple-500/40 text-slate-100 border-indigo-400/50";
   }
 
   function isSlotAllowedForSection(sectionName: string, timeSlot: TimeSlot) {
@@ -365,7 +936,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     let finalSubjectId = subjectId;
     if (!finalSubjectId && label) {
       // Retry with the label if subjectId wasn't found
-      finalSubjectId = findSubjectIdForPrefill(label);
+      finalSubjectId = findSubjectIdForPrefill(label, selectedSection?.gradeLevel);
     }
     
     setSelectedSubject(finalSubjectId || "");
@@ -399,22 +970,46 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     }
 
     try {
-      const response = await fetch("/api/admin/schedules", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          teacherId: selectedTeacher,
-          subjectId: selectedSubject,
-          sectionId: selectedSlot.sectionId,
-          timeSlotId: selectedSlot.timeSlotId,
-          room: null,
-          overrideRules: true,
-          overrideReason: "Admin schedule builder assignment",
-        }),
-      });
+      const matchingSlotIds = timeSlots
+        .filter((timeSlot) => {
+          const prefill = getImagePrefill(
+            selectedSection?.name || "",
+            timeSlot.day,
+            timeSlot.startTime
+          );
+          return prefill && findSubjectIdForPrefill(prefill.label, selectedSection?.gradeLevel) === selectedSubject;
+        })
+        .filter((timeSlot) => {
+          const existing = getScheduleForSlot(selectedSlot.sectionId, timeSlot.id);
+          return !existing;
+        })
+        .map((timeSlot) => timeSlot.id);
 
-      if (response.ok) {
-        setSuccess("Class assigned successfully!");
+      if (!matchingSlotIds.includes(selectedSlot.timeSlotId)) {
+        matchingSlotIds.unshift(selectedSlot.timeSlotId);
+      }
+
+      const responses = await Promise.all(
+        matchingSlotIds.map((timeSlotId) =>
+          fetch("/api/admin/schedules", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              teacherId: selectedTeacher,
+              subjectId: selectedSubject,
+              sectionId: selectedSlot.sectionId,
+              timeSlotId,
+              room: null,
+              overrideRules: true,
+              overrideReason: "Admin schedule builder assignment",
+            }),
+          })
+        )
+      );
+
+      const failedResponses = responses.filter((response) => !response.ok);
+      if (failedResponses.length === 0) {
+        setSuccess(`Teacher assigned to ${matchingSlotIds.length} matching subject slot(s)!`);
         setShowModal(false);
         setSelectedSlot(null);
         setSelectedTeacher("");
@@ -423,7 +1018,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
         // Reload data
         loadData();
       } else {
-        const data = await response.json();
+        const data = await failedResponses[0].json();
         setError(data.error || "Failed to assign class");
       }
     } catch (error) {
@@ -436,12 +1031,25 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     if (!confirm("Remove this assignment?")) return;
 
     try {
-      const response = await fetch(`/api/admin/schedules?id=${scheduleId}`, {
-        method: "DELETE",
-      });
+      const selectedSchedule = schedules.find((schedule) => schedule.id === scheduleId);
+      const schedulesToDelete = selectedSchedule
+        ? schedules.filter(
+            (schedule) =>
+              schedule.section.id === selectedSchedule.section.id &&
+              schedule.subject.id === selectedSchedule.subject.id
+          )
+        : schedules.filter((schedule) => schedule.id === scheduleId);
 
-      if (response.ok) {
-        setSuccess("Assignment removed");
+      const responses = await Promise.all(
+        schedulesToDelete.map((schedule) =>
+          fetch(`/api/admin/schedules?id=${schedule.id}`, {
+            method: "DELETE",
+          })
+        )
+      );
+
+      if (responses.every((response) => response.ok)) {
+        setSuccess(`Removed ${schedulesToDelete.length} assignment(s)`);
         loadData();
       } else {
         setError("Failed to remove assignment");
@@ -586,30 +1194,46 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                           onClick={() => slot && !schedule && slotAllowed && !isBreakSlot && openAssignModal(section.id, slot.id)}
                         >
                           {schedule ? (
-                            <div className="rounded bg-gradient-to-br from-indigo-500/40 to-purple-500/40 border border-indigo-400/50 p-2 h-full overflow-hidden flex flex-col justify-between">
-                              <div>
-                                <div className="font-bold text-indigo-200 text-xs leading-tight">
-                                  {schedule.teacher.user.name}
-                                </div>
-                                <div className="text-slate-300 text-[11px] leading-tight mt-1">
-                                  {schedule.subject.name}
-                                </div>
-                                {schedule.room && (
-                                  <div className="text-slate-400 text-[10px] mt-1">
-                                    Room: {schedule.room}
-                                  </div>
-                                )}
+                            isNeutralSection(section.name) ? (
+                              <div className="rounded bg-slate-800/60 border border-slate-600 p-2 h-full overflow-hidden flex flex-col justify-center items-center text-slate-300 text-[11px]">
+                                <div className="font-semibold">{getSubjectDisplayLabel(schedule.subject.name)}</div>
+                                <div className="text-[10px] text-slate-400 mt-1">{schedule.teacher.user.name}</div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(schedule.id);
+                                  }}
+                                  className="text-[10px] px-2 py-1 bg-red-500/30 hover:bg-red-500/50 text-red-200 border border-red-400/30 rounded transition mt-2"
+                                >
+                                  Remove
+                                </button>
                               </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDelete(schedule.id);
-                                }}
-                                className="text-[10px] px-2 py-1 bg-red-500/30 hover:bg-red-500/50 text-red-200 border border-red-400/30 rounded transition mt-2"
-                              >
-                                Remove
-                              </button>
-                            </div>
+                            ) : (
+                              <div className={`rounded border p-2 h-full overflow-hidden flex flex-col justify-between ${getSubjectColor(schedule.subject.name)}`}>
+                                <div>
+                                  <div className="font-bold text-current text-[10px] leading-tight">
+                                    {schedule.teacher.user.name}
+                                  </div>
+                                  <div className="text-current text-[11px] leading-tight mt-1">
+                                    {getSubjectDisplayLabel(schedule.subject.name)}
+                                  </div>
+                                  {schedule.room && (
+                                    <div className="text-current text-[10px] mt-1 opacity-75">
+                                      Room: {schedule.room}
+                                    </div>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDelete(schedule.id);
+                                  }}
+                                  className="text-[10px] px-2 py-1 bg-red-500/30 hover:bg-red-500/50 text-red-200 border border-red-400/30 rounded transition mt-2"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            )
                           ) : prefill ? (
                             prefill.disableClick ? (
                               <div
@@ -622,7 +1246,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (!slot) return;
-                                  const prefillSubjectId = findSubjectIdForPrefill(prefill.label);
+                                  const prefillSubjectId = findSubjectIdForPrefill(prefill.label, section.gradeLevel);
                                   openAssignModal(section.id, slot.id, prefillSubjectId, prefill.label);
                                 }}
                                 className={`w-full h-full rounded ${prefill.bg || "bg-slate-600"} ${prefill.textColor || "text-white"} p-2 flex items-center justify-center text-[12px] font-semibold text-center leading-tight`}

@@ -1,6 +1,16 @@
 import { getServerSession } from "next-auth/next";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+
+type ScheduleWithRelations = Prisma.ScheduleBlockGetPayload<{
+  include: {
+    teacher: { include: { user: true } };
+    subject: true;
+    section: true;
+    timeSlot: true;
+  };
+}>;
 
 export async function GET() {
   let session;
@@ -17,7 +27,7 @@ export async function GET() {
 
   try {
     // Get all schedules with their details and creation time
-    const schedules = await prisma.scheduleBlock.findMany({
+    const schedules: ScheduleWithRelations[] = await prisma.scheduleBlock.findMany({
       include: {
         teacher: { include: { user: true } },
         subject: true,
@@ -34,8 +44,7 @@ export async function GET() {
       id: schedule.id,
       action: "ASSIGNED",
       timestamp: schedule.createdAt,
-      teacher:
-        schedule.teacher?.user?.name ?? schedule.teacher?.name ?? "Unknown",
+      teacher: schedule.teacher?.user?.name ?? "Unknown",
       subject: schedule.subject?.name ?? "Unknown",
       section: schedule.section?.name ?? "Unknown",
       timeSlot:

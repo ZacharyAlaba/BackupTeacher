@@ -1,8 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { PrismaClient } = require("@prisma/client");
-
-const prisma = new PrismaClient();
+const { prisma } = require("../lib/prisma");
 
 (async () => {
   try {
@@ -31,17 +29,19 @@ const prisma = new PrismaClient();
       parsedSlots.push({ day, startTime, endTime });
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.scheduleBlock.deleteMany({});
-      await tx.timeSlot.deleteMany({});
+    // Clear existing schedule blocks and time slots, then insert new ones
+    await prisma.scheduleBlock.deleteMany({});
+    await prisma.timeSlot.deleteMany({});
 
-      if (parsedSlots.length > 0) {
-        await tx.timeSlot.createMany({
-          data: parsedSlots,
-          skipDuplicates: true,
-        });
+    if (parsedSlots.length > 0) {
+      for (const slot of parsedSlots) {
+        try {
+          await prisma.timeSlot.create({ data: slot });
+        } catch (e) {
+          // ignore duplicates or errors on insert
+        }
       }
-    });
+    }
 
     const total = await prisma.timeSlot.count();
 

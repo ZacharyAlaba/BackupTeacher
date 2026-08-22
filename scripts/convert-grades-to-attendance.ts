@@ -14,15 +14,19 @@ async function main() {
   for (const g of gradeRecords) {
     // Map numeric score to attendance status: score > 0 => PRESENT, score === 0 => ABSENT
     const status = g.score > 0 ? "PRESENT" : "ABSENT";
+    const attendanceDate = g.createdAt
+      ? g.createdAt.toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
 
     try {
       await prisma.attendanceRecord.upsert({
         where: {
-          studentId_subjectId_gradingPeriod_academicYear: {
+          studentId_subjectId_gradingPeriod_academicYear_date: {
             studentId: g.studentId,
             subjectId: g.subjectId,
             gradingPeriod: g.gradingPeriod,
             academicYear: g.academicYear,
+            date: attendanceDate,
           },
         },
         create: {
@@ -32,6 +36,7 @@ async function main() {
           teacherId: g.teacherId,
           gradingPeriod: g.gradingPeriod,
           academicYear: g.academicYear,
+          date: attendanceDate,
           status: status as any,
           remarks: g.remarks || null,
         },
@@ -39,6 +44,7 @@ async function main() {
           sectionId: g.sectionId,
           teacherId: g.teacherId,
           status: status as any,
+          date: attendanceDate,
           remarks: g.remarks || null,
         },
       });

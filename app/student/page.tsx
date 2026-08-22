@@ -65,6 +65,21 @@ export default function StudentPage() {
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    dateOfBirth: "",
+    gender: "",
+    phone: "",
+    address: "",
+    guardianName: "",
+    guardianPhone: "",
+  });
+  const [profileError, setProfileError] = useState("");
+  const [profileSuccess, setProfileSuccess] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -90,6 +105,91 @@ export default function StudentPage() {
       console.error("Failed to fetch student data:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  function openProfileModal() {
+    setProfileForm({
+      dateOfBirth: studentData?.dateOfBirth || "",
+      gender: studentData?.gender || "",
+      phone: studentData?.phone || "",
+      address: studentData?.address || "",
+      guardianName: studentData?.guardianName || "",
+      guardianPhone: studentData?.guardianPhone || "",
+    });
+    setProfileError("");
+    setProfileSuccess(false);
+    setShowProfileModal(true);
+  }
+
+  async function handleProfileSave(e: React.FormEvent) {
+    e.preventDefault();
+    setProfileError("");
+    setProfileSuccess(false);
+
+    try {
+      const response = await fetch("/api/student/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(profileForm),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setStudentData((current) => (current ? { ...current, ...data } : current));
+        setProfileSuccess(true);
+        setTimeout(() => {
+          setShowProfileModal(false);
+          setProfileSuccess(false);
+        }, 1500);
+      } else {
+        setProfileError(data.error || "Failed to update profile");
+      }
+    } catch (error) {
+      setProfileError("Failed to update profile");
+    }
+  }
+
+  async function handlePasswordChange(e: React.FormEvent) {
+    e.preventDefault();
+    setPasswordError("");
+    setPasswordSuccess(false);
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError("New passwords do not match");
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError("Password must be at least 6 characters");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/teacher/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setPasswordSuccess(true);
+        setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        setTimeout(() => {
+          setShowPasswordModal(false);
+          setPasswordSuccess(false);
+        }, 2000);
+      } else {
+        setPasswordError(data.error || "Failed to change password");
+      }
+    } catch (error) {
+      setPasswordError("Failed to change password");
     }
   }
 
@@ -257,12 +357,26 @@ export default function StudentPage() {
             <h1 className="text-4xl font-bold text-white mb-2">Welcome, {studentData.name}</h1>
             <p className="text-slate-400">Student ID: {studentData.studentId}</p>
           </div>
-          <button
-            onClick={() => signOut()}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
-          >
-            Sign Out
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={openProfileModal}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg"
+            >
+              Edit Profile
+            </button>
+            <button
+              onClick={() => setShowPasswordModal(true)}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg"
+            >
+              Change Password
+            </button>
+            <button
+              onClick={() => signOut()}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
 
           <div className="mb-8 flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800 p-4">
@@ -393,6 +507,181 @@ export default function StudentPage() {
           </div>
         </div>
       </div>
+
+      {/* Edit Profile Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-8 max-w-lg w-full shadow-lg">
+            <h2 className="text-2xl font-bold text-white mb-4">Edit Profile</h2>
+
+            {profileSuccess && (
+              <div className="mb-4 p-3 bg-green-900/30 border border-green-700 text-green-300 rounded-lg">
+                Profile updated successfully!
+              </div>
+            )}
+
+            {profileError && (
+              <div className="mb-4 p-3 bg-red-900/30 border border-red-700 text-red-300 rounded-lg">
+                {profileError}
+              </div>
+            )}
+
+            <form onSubmit={handleProfileSave} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={profileForm.dateOfBirth}
+                    onChange={(e) => setProfileForm({ ...profileForm, dateOfBirth: e.target.value })}
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Gender</label>
+                  <select
+                    value={profileForm.gender}
+                    onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                  >
+                    <option value="">Select gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={profileForm.phone}
+                    onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Guardian Name</label>
+                  <input
+                    type="text"
+                    value={profileForm.guardianName}
+                    onChange={(e) => setProfileForm({ ...profileForm, guardianName: e.target.value })}
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Guardian Phone</label>
+                  <input
+                    type="tel"
+                    value={profileForm.guardianPhone}
+                    onChange={(e) => setProfileForm({ ...profileForm, guardianPhone: e.target.value })}
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Address</label>
+                <textarea
+                  value={profileForm.address}
+                  onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
+                  rows={2}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowProfileModal(false)}
+                  className="flex-1 px-4 py-2 border border-slate-600 text-slate-200 rounded-lg font-semibold hover:bg-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-semibold"
+                >
+                  Save Profile
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-8 max-w-md w-full shadow-lg">
+            <h2 className="text-2xl font-bold text-white mb-4">Change Password</h2>
+
+            {passwordSuccess && (
+              <div className="mb-4 p-3 bg-green-900/30 border border-green-700 text-green-300 rounded-lg">
+                Password changed successfully!
+              </div>
+            )}
+
+            {passwordError && (
+              <div className="mb-4 p-3 bg-red-900/30 border border-red-700 text-red-300 rounded-lg">
+                {passwordError}
+              </div>
+            )}
+
+            <form onSubmit={handlePasswordChange} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Current Password</label>
+                <input
+                  type="password"
+                  required
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">New Password</label>
+                <input
+                  type="password"
+                  required
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  required
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                    setPasswordError("");
+                  }}
+                  className="flex-1 px-4 py-2 border border-slate-600 text-slate-200 rounded-lg font-semibold hover:bg-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-semibold"
+                >
+                  Change Password
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

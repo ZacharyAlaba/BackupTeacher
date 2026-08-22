@@ -1,15 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import fs from "fs/promises";
 import path from "path";
-
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DIRECT_URL || process.env.DATABASE_URL,
-    },
-  },
-});
 
 async function main() {
   // Create admin user
@@ -85,9 +77,7 @@ async function seedTimeSlotsFromCsv() {
       });
 
       if (!existing) {
-        await prisma.timeSlot.create({
-          data: { day, startTime, endTime },
-        });
+        await prisma.timeSlot.create({ data: { day, startTime, endTime } });
         imported++;
       }
     }

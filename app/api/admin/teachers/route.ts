@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(teachers);
   } catch (error) {
     console.error("Teachers fetch error:", error);
-    return NextResponse.json([]);
+    return NextResponse.json({ error: "Failed to fetch teachers" }, { status: 500 });
   }
 }
 
@@ -62,11 +62,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Return teacher with password (only shown to admin on creation)
-    return NextResponse.json({
-      ...teacher,
-      password: tempPassword,
-    }, { status: 201 });
+    return NextResponse.json(
+      {
+        ...teacher,
+        user: {
+          name: user.name,
+          email: user.email,
+        },
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error("Teacher creation error:", error);
     if (error.code === "P2002") {

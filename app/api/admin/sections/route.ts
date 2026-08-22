@@ -18,12 +18,12 @@ async function loadSectionsFromCsv() {
   const lines = txt.split(/\r?\n/).filter((l) => l.trim() !== "");
   if (lines.length <= 1) return [];
   const headers = lines[0].split(",").map((h) => h.trim());
-  return lines.slice(1).map((line) => {
+  return lines.slice(1).map((line, index) => {
     const cols = line.split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
     const obj: any = {};
     headers.forEach((h, i) => (obj[h] = cols[i] ?? ""));
     return {
-      id: null,
+      id: `csv-section-${index}`,
       name: obj.name || obj.section || obj[headers[0]] || "",
       gradeLevel: obj.grade_level || obj.gradeLevel || obj.grade || "",
       track: obj.track || "",
