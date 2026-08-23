@@ -147,7 +147,7 @@ export default function TeachersPage() {
       if (response.ok) {
         setBulkImportResult(result);
         setBulkImportFile(null);
-        setShowBulkImport(false);
+        setShowBulkImport(result.failed > 0);
         await fetchTeachers();
       } else {
         alert(`Error: ${result.error || "Failed to import teachers."}`);
@@ -194,12 +194,6 @@ export default function TeachersPage() {
             <h1 className="text-4xl font-bold text-white mb-2">Teachers Management</h1>
             <p className="text-slate-400">View and manage all registered teachers</p>
           </div>
-          <button
-            onClick={() => signOut()}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
-          >
-            Logout
-          </button>
         </div>
 
         {/* Info Banner - Teacher Self-Registration */}

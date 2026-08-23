@@ -84,10 +84,54 @@ export async function POST(request: Request) {
     // Check if email already exists
     const existingEmail = await prisma.user.findUnique({
       where: { email },
+      include: { student: true },
     });
 
     if (existingEmail) {
-      return new Response(JSON.stringify({ error: "Email already exists" }), { status: 400 });
+      if (existingEmail.role !== "STUDENT" || existingEmail.student) {
+        return new Response(JSON.stringify({ error: "Email already exists" }), { status: 400 });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await prisma.user.update({
+        where: { id: existingEmail.id },
+        data: { name, password: hashedPassword },
+      });
+
+      const student = await prisma.student.create({
+        data: {
+          studentId: finalStudentId,
+          gradeLevel,
+          sectionId,
+          userId: existingEmail.id,
+          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+          gender: gender || null,
+          phone: phone || null,
+          address: address || null,
+          guardianName: guardianName || null,
+          guardianPhone: guardianPhone || null,
+        },
+        include: { section: true },
+      });
+
+      return new Response(
+        JSON.stringify({
+          id: student.id,
+          studentId: student.studentId,
+          name,
+          email,
+          gradeLevel: student.gradeLevel,
+          sectionId: student.sectionId,
+          section: student.section,
+          dateOfBirth: student.dateOfBirth,
+          gender: student.gender,
+          phone: student.phone,
+          address: student.address,
+          guardianName: student.guardianName,
+          guardianPhone: student.guardianPhone,
+        }),
+        { status: 201 }
+      );
     }
 
     // Hash password
@@ -267,15 +311,16 @@ export async function DELETE(request: Request) {
 
     const student = await prisma.student.findUnique({
       where: { id },
+      select: { id: true, userId: true },
     });
 
     if (!student) {
       return new Response(JSON.stringify({ error: "Student not found" }), { status: 404 });
     }
 
-    // Delete student (user will cascade delete)
-    await prisma.student.delete({
-      where: { id },
+    await prisma.$transaction(async (transaction) => {
+      await transaction.student.delete({ where: { id: student.id } });
+      await transaction.user.delete({ where: { id: student.userId } });
     });
 
     return new Response(JSON.stringify({ success: true }), { status: 200 });

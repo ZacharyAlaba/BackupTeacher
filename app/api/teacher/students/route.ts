@@ -37,9 +37,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Section not found" }, { status: 404 });
     }
 
-    const existingEmail = await prisma.user.findUnique({ where: { email } });
+    const existingEmail = await prisma.user.findUnique({
+      where: { email },
+      include: { student: true },
+    });
     if (existingEmail) {
-      return NextResponse.json({ error: "Email already exists" }, { status: 400 });
+      if (existingEmail.role !== "STUDENT" || existingEmail.student) {
+        return NextResponse.json({ error: "Email already exists" }, { status: 400 });
+      }
+
+      const studentId = await generateStudentId(section.gradeLevel);
+      const student = await prisma.student.create({
+        data: {
+          studentId,
+          gradeLevel: section.gradeLevel,
+          sectionId,
+          userId: existingEmail.id,
+        },
+      });
+
+      if (subjectId) {
+        await prisma.subjectStudent.create({
+          data: { studentId: student.id, subjectId, sectionId, teacherId: teacher.id },
+        });
+      }
+
+      return NextResponse.json(
+        {
+          id: student.id,
+          studentId: student.studentId,
+          name: existingEmail.name,
+          email: existingEmail.email,
+          tempPassword: "Existing account password unchanged",
+        },
+        { status: 201 }
+      );
     }
 
     const studentId = await generateStudentId(section.gradeLevel);

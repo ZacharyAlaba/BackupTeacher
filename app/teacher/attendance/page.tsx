@@ -688,7 +688,7 @@ export default function TeacherAttendancePage() {
 
         <div className="mt-6 rounded-2xl border border-slate-700 bg-[#071a2d]/90 p-5 shadow-2xl shadow-slate-950/30 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
           <h2 className="text-2xl font-semibold text-white light:text-slate-900">Bulk Import Class List</h2>
-          <p className="mt-2 text-sm text-slate-400 light:text-slate-500">Upload a CSV or Excel file with columns: studentId, email, name. Rows that don't match an existing student are created automatically.</p>
+          <p className="mt-2 text-sm text-slate-400 light:text-slate-500">Upload a CSV or Excel file with columns: name, email. Student IDs are generated automatically; you may include studentId to match an existing student.</p>
 
           <form onSubmit={handleBulkImport} className="mt-4 space-y-4">
             <div>
@@ -711,11 +711,11 @@ export default function TeacherAttendancePage() {
             <div className="rounded-xl border border-slate-700 bg-[#112b45] p-4 light:border-slate-200 light:bg-slate-50">
               <p className="mb-3 text-sm text-slate-300 light:text-slate-600">CSV / Excel Format Example:</p>
               <pre className="overflow-x-auto text-xs text-slate-400 light:text-slate-500">
-studentId,email,name
-G11-001,john.doe@school.edu,John Doe
-G11-002,jane.smith@school.edu,Jane Smith
+name,email
+John Doe,john.doe@school.edu
+Jane Smith,jane.smith@school.edu
               </pre>
-              <p className="mt-3 text-xs text-slate-400 light:text-slate-500">Existing students only need studentId or email to match. New students also need a name - they'll be created and will appear in Admin &rarr; Students automatically.</p>
+              <p className="mt-3 text-xs text-slate-400 light:text-slate-500">Name and email are required, just like Add Student. Student IDs are generated automatically. You can optionally add a studentId column for matching existing students.</p>
             </div>
 
             <button

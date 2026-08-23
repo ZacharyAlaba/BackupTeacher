@@ -790,9 +790,18 @@ export async function GET() {
       // also include canonical time slots so clients can render a full grid
       const allTimeSlots = await prisma.timeSlot.findMany({ orderBy: [{ day: "asc" }, { startTime: "asc" }] });
 
-      const isPrefillSection = student.gradeLevel === "G11" && findImagePrefillEntries(student.section.name).length > 0;
+      const isPrefillSection = findImagePrefillEntries(student.section.name).length > 0;
       if (schedule.length === 0 || isPrefillSection) {
-        schedule = await buildFallbackStudentSchedule(student);
+        const fallbackSchedule = await buildFallbackStudentSchedule(student);
+        const assignedBlocks = new Map(
+          schedule.map((block) => [
+            `${block.timeSlot.day}|${block.timeSlot.startTime}-${block.timeSlot.endTime}`,
+            block,
+          ])
+        );
+        schedule = fallbackSchedule.map((block) =>
+          assignedBlocks.get(`${block.timeSlot.day}|${block.timeSlot.startTime}-${block.timeSlot.endTime}`) ?? block
+        );
       }
 
       return NextResponse.json({

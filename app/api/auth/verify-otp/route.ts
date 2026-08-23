@@ -15,7 +15,9 @@ function createSupabaseAdmin() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, otp } = await request.json();
+    const { email: rawEmail, otp: rawOtp } = await request.json();
+    const email = String(rawEmail || '').trim().toLowerCase();
+    const otp = String(rawOtp || '').replace(/\D/g, '').padStart(OTP_CONFIG.LENGTH, '0');
 
     if (!email || !otp) {
       return NextResponse.json(
@@ -32,59 +34,68 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find OTP record
-    const { data: otpRecord, error: fetchError } = await supabase
+    // Keep all recent records because Gmail can deliver OTP messages out of order.
+    // Sort locally so verification does not depend on database column quoting.
+    const { data: otpRecords, error: fetchError } = await supabase
       .from('OTP')
       .select('*')
-      .eq('email', email)
-      .maybeSingle();
+      .ilike('email', email);
 
     if (fetchError) {
-      console.error('OTP fetch error:', fetchError);
+      console.error('OTP fetch error:', fetchError.message);
       return NextResponse.json(
         { error: 'OTP not found or expired' },
         { status: 404 }
       );
     }
 
-    if (!otpRecord) {
+    if (!otpRecords || otpRecords.length === 0) {
       return NextResponse.json(
         { error: 'OTP not found or expired' },
         { status: 404 }
       );
     }
 
-    const expiryValue = String(otpRecord.expiresAt);
-    const expiryDate = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(expiryValue)
-      ? new Date(expiryValue)
-      : new Date(`${expiryValue}Z`);
+    const now = Date.now();
+    const activeRecords = [...otpRecords]
+      .sort((first, second) => String(second.createdAt).localeCompare(String(first.createdAt)))
+      .filter((record) => {
+      const expiryValue = String(record.expiresAt);
+      const expiryDate = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(expiryValue)
+        ? new Date(expiryValue)
+        : new Date(`${expiryValue}Z`);
+      return !Number.isNaN(expiryDate.getTime()) && now < expiryDate.getTime();
+      });
 
-    if (Number.isNaN(expiryDate.getTime()) || Date.now() >= expiryDate.getTime()) {
-      await supabase.from('OTP').delete().eq('email', email);
-      return NextResponse.json(
-        { error: 'OTP has expired. Please request a new one.' },
-        { status: 410 }
-      );
-    }
+    const matchingRecord = activeRecords.find((record) => {
+      const storedCode = String(record.code || '').replace(/\D/g, '').padStart(OTP_CONFIG.LENGTH, '0');
+      return storedCode === otp && record.attempts < OTP_CONFIG.MAX_ATTEMPTS;
+    });
 
-    // Check attempt count
-    if (otpRecord.attempts >= OTP_CONFIG.MAX_ATTEMPTS) {
-      await supabase.from('OTP').delete().eq('email', email);
-      return NextResponse.json(
-        { error: 'Maximum OTP verification attempts exceeded. Please request a new OTP.' },
-        { status: 429 }
-      );
-    }
+    if (!matchingRecord) {
+      const latestRecord = activeRecords[0];
+      if (!latestRecord) {
+        await supabase.from('OTP').delete().eq('email', email);
+        return NextResponse.json(
+          { error: 'OTP has expired. Please request a new one.' },
+          { status: 410 }
+        );
+      }
 
-    // Verify OTP code
-    if (otpRecord.code !== otp) {
-      // Increment attempts
+      if (activeRecords.every((record) => record.attempts >= OTP_CONFIG.MAX_ATTEMPTS)) {
+        await supabase.from('OTP').delete().eq('email', email);
+        return NextResponse.json(
+          { error: 'Maximum OTP verification attempts exceeded. Please request a new OTP.' },
+          { status: 429 }
+        );
+      }
+
       await supabase
         .from('OTP')
-        .update({ attempts: otpRecord.attempts + 1 })
-        .eq('email', email);
+        .update({ attempts: latestRecord.attempts + 1 })
+        .eq('id', latestRecord.id);
 
-      const remainingAttempts = OTP_CONFIG.MAX_ATTEMPTS - (otpRecord.attempts + 1);
+      const remainingAttempts = OTP_CONFIG.MAX_ATTEMPTS - (latestRecord.attempts + 1);
       return NextResponse.json(
         {
           error: `Invalid OTP. ${remainingAttempts} attempts remaining.`,
@@ -94,7 +105,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // OTP is valid - delete it so it can't be reused
+    // A valid OTP consumes all outstanding codes for this login email.
     await supabase.from('OTP').delete().eq('email', email);
 
     return NextResponse.json(

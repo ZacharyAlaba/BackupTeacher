@@ -17,7 +17,8 @@ function createSupabaseAdmin() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password } = await request.json();
+    const { email: rawEmail, password } = await request.json();
+    const email = String(rawEmail || '').trim().toLowerCase();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -69,9 +70,9 @@ export async function POST(request: NextRequest) {
     const otpCode = generateOTPCode();
     const expiryTime = getOTPExpiryTime();
 
-    // Remove any existing OTP for this email, then insert the new one
-    // (no unique constraint on email, so upsert-by-email isn't possible)
-    await supabase.from('OTP').delete().eq('email', email);
+    // Remove expired records, but keep recent codes because email delivery can
+    // arrive out of order when a user requests OTP more than once.
+    await supabase.from('OTP').delete().lt('expiresAt', new Date().toISOString());
 
     const { error: insertError } = await supabase.from('OTP').insert({
       id: randomUUID(),

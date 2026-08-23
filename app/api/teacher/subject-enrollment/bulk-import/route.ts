@@ -86,8 +86,8 @@ export async function POST(request: Request) {
     const emailIndex = headers.indexOf("email");
     const nameIndex = headers.indexOf("name");
 
-    if (studentIdIndex === -1 && emailIndex === -1) {
-      return NextResponse.json({ error: "Import must include studentId or email column" }, { status: 400 });
+    if (nameIndex === -1 || emailIndex === -1) {
+      return NextResponse.json({ error: "Import must have columns: name, email" }, { status: 400 });
     }
 
     const section = await prisma.section.findUnique({ where: { id: sectionId } });
@@ -110,8 +110,8 @@ export async function POST(request: Request) {
       const studentIdentifier = studentIdValue || emailValue || `row ${rowNumber}`;
 
       try {
-        if (!studentIdValue && !emailValue) {
-          throw new Error("studentId or email is required");
+        if (!nameValue || !emailValue) {
+          throw new Error("name and email are required");
         }
 
         let student = await prisma.student.findFirst({
@@ -137,35 +137,50 @@ export async function POST(request: Request) {
             throw new Error("name is required to create a new student");
           }
 
-          const existingEmail = await prisma.user.findUnique({ where: { email: emailValue } });
+          const existingEmail = await prisma.user.findUnique({
+            where: { email: emailValue },
+            include: { student: true },
+          });
           if (existingEmail) {
-            throw new Error("A student with this email already exists in a different section");
+            if (existingEmail.role !== "STUDENT" || existingEmail.student) {
+              throw new Error("A student with this email already exists in a different section");
+            }
+
+            student = await prisma.student.create({
+              data: {
+                studentId: studentIdValue || (await generateStudentId(section.gradeLevel)),
+                gradeLevel: section.gradeLevel,
+                sectionId,
+                userId: existingEmail.id,
+              },
+              include: { user: true },
+            });
+          } else {
+            const newStudentId = studentIdValue || (await generateStudentId(section.gradeLevel));
+            const existingStudentId = await prisma.student.findUnique({ where: { studentId: newStudentId } });
+            if (existingStudentId) {
+              throw new Error(`Student ID ${newStudentId} already exists`);
+            }
+
+            const tempPassword = Math.random().toString(36).slice(-8);
+            const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+            const user = await prisma.user.create({
+              data: { email: emailValue, name: nameValue, password: hashedPassword, role: "STUDENT" },
+            });
+
+            student = await prisma.student.create({
+              data: {
+                studentId: newStudentId,
+                gradeLevel: section.gradeLevel,
+                sectionId,
+                userId: user.id,
+              },
+              include: { user: true },
+            });
+
+            result.created.push({ studentId: student.studentId, name: user.name, email: user.email, tempPassword });
           }
-
-          const newStudentId = studentIdValue || (await generateStudentId(section.gradeLevel));
-          const existingStudentId = await prisma.student.findUnique({ where: { studentId: newStudentId } });
-          if (existingStudentId) {
-            throw new Error(`Student ID ${newStudentId} already exists`);
-          }
-
-          const tempPassword = Math.random().toString(36).slice(-8);
-          const hashedPassword = await bcrypt.hash(tempPassword, 10);
-
-          const user = await prisma.user.create({
-            data: { email: emailValue, name: nameValue, password: hashedPassword, role: "STUDENT" },
-          });
-
-          student = await prisma.student.create({
-            data: {
-              studentId: newStudentId,
-              gradeLevel: section.gradeLevel,
-              sectionId,
-              userId: user.id,
-            },
-            include: { user: true },
-          });
-
-          result.created.push({ studentId: student.studentId, name: user.name, email: user.email, tempPassword });
         }
 
         const existing = await prisma.subjectStudent.findFirst({

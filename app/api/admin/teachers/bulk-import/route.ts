@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -30,37 +29,6 @@ async function parseImportRows(file: File): Promise<string[][]> {
   }
 
   throw new Error("Only CSV and Excel files are supported");
-}
-
-function buildTeacherInsertSql(
-  userId: string,
-  data: { dateOfBirth?: Date | null; gender?: string | null; phone?: string | null; address?: string | null }
-) {
-  const columns = [Prisma.raw('"userId"')];
-  const values = [Prisma.sql`${userId}`];
-
-  if (Object.prototype.hasOwnProperty.call(data, "dateOfBirth")) {
-    columns.push(Prisma.raw('"dateOfBirth"'));
-    values.push(Prisma.sql`${data.dateOfBirth}`);
-  }
-  if (Object.prototype.hasOwnProperty.call(data, "gender")) {
-    columns.push(Prisma.raw('"gender"'));
-    values.push(Prisma.sql`${data.gender}`);
-  }
-  if (Object.prototype.hasOwnProperty.call(data, "phone")) {
-    columns.push(Prisma.raw('"phone"'));
-    values.push(Prisma.sql`${data.phone}`);
-  }
-  if (Object.prototype.hasOwnProperty.call(data, "address")) {
-    columns.push(Prisma.raw('"address"'));
-    values.push(Prisma.sql`${data.address}`);
-  }
-
-  return Prisma.sql`
-    INSERT INTO "Teacher" (${Prisma.join(columns, ", ")})
-    VALUES (${Prisma.join(values, ", ")})
-    RETURNING *
-  `;
 }
 
 interface ImportResult {
@@ -144,19 +112,38 @@ export async function POST(request: Request) {
           throw new Error("Invalid dateOfBirth format");
         }
 
-        const existingUser = await prisma.user.findUnique({ where: { email } });
-        if (existingUser) {
-          throw new Error("Email already exists in system");
-        }
-
-        const tempPassword = Math.random().toString(36).slice(-8);
-        const hashedPassword = await bcrypt.hash(tempPassword, 10);
-
         const teacherCreateData: { dateOfBirth?: Date | null; gender?: string | null; phone?: string | null; address?: string | null } = {};
         if (dateOfBirth) teacherCreateData.dateOfBirth = new Date(dateOfBirth);
         if (gender) teacherCreateData.gender = gender;
         if (phone) teacherCreateData.phone = phone;
         if (address) teacherCreateData.address = address;
+
+        const existingUser = await prisma.user.findUnique({
+          where: { email },
+          include: { teacher: true },
+        });
+        if (existingUser) {
+          if (existingUser.role !== "TEACHER") {
+            throw new Error("Email already belongs to a non-teacher account");
+          }
+
+          if (existingUser.teacher) {
+            throw new Error("Teacher email already exists in system");
+          }
+
+          await prisma.teacher.create({
+            data: {
+              userId: existingUser.id,
+              ...teacherCreateData,
+            },
+          });
+          result.created.push({ name: existingUser.name, email });
+          result.success++;
+          continue;
+        }
+
+        const tempPassword = Math.random().toString(36).slice(-8);
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
         const user = await prisma.user.create({
           data: {
@@ -167,7 +154,12 @@ export async function POST(request: Request) {
           },
         });
 
-        await prisma.$queryRaw(buildTeacherInsertSql(user.id, teacherCreateData));
+        await prisma.teacher.create({
+          data: {
+            userId: user.id,
+            ...teacherCreateData,
+          },
+        });
 
         result.created.push({ name, email });
         result.success++;
