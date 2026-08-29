@@ -5,6 +5,68 @@ import nodemailer from 'nodemailer';
 const OTP_LENGTH = 6;
 const OTP_EXPIRY_MINUTES = 5;
 const MAX_ATTEMPTS = 5;
+const OTP_PROCESS_START_KEY = Symbol.for('teacher-scheduling.otp-process-start');
+const OTP_PROCESS_SENT_KEY = Symbol.for('teacher-scheduling.otp-process-sent');
+const OTP_PROCESS_VERIFIED_KEY = Symbol.for('teacher-scheduling.otp-process-verified');
+
+type OTPGlobalState = typeof globalThis & {
+  [OTP_PROCESS_START_KEY]?: number;
+  [OTP_PROCESS_SENT_KEY]?: Set<string>;
+  [OTP_PROCESS_VERIFIED_KEY]?: Set<string>;
+};
+
+function getOTPProcessStartTime(): number {
+  const globalState = globalThis as OTPGlobalState;
+  globalState[OTP_PROCESS_START_KEY] ??= Date.now();
+  return globalState[OTP_PROCESS_START_KEY];
+}
+
+export function hasOTPSentInCurrentProcess(email: string): boolean {
+  return getOTPProcessSentEmails().has(email.toLowerCase());
+}
+
+export function markOTPSentInCurrentProcess(email: string): void {
+  getOTPProcessSentEmails().add(email.toLowerCase());
+}
+
+export function clearOTPSentInCurrentProcess(email: string): void {
+  getOTPProcessSentEmails().delete(email.toLowerCase());
+}
+
+export function hasOTPVerifiedInCurrentProcess(email: string): boolean {
+  return getOTPProcessVerifiedEmails().has(email.toLowerCase());
+}
+
+export function markOTPVerifiedInCurrentProcess(email: string): void {
+  getOTPProcessVerifiedEmails().add(email.toLowerCase());
+}
+
+export function clearOTPVerifiedInCurrentProcess(email: string): void {
+  getOTPProcessVerifiedEmails().delete(email.toLowerCase());
+}
+
+function getOTPProcessSentEmails(): Set<string> {
+  const globalState = globalThis as OTPGlobalState;
+  globalState[OTP_PROCESS_SENT_KEY] ??= new Set<string>();
+  return globalState[OTP_PROCESS_SENT_KEY];
+}
+
+function getOTPProcessVerifiedEmails(): Set<string> {
+  const globalState = globalThis as OTPGlobalState;
+  globalState[OTP_PROCESS_VERIFIED_KEY] ??= new Set<string>();
+  return globalState[OTP_PROCESS_VERIFIED_KEY];
+}
+
+export function isOTPRequiredForCurrentProcess(otpVerifiedAt: Date | string | null | undefined): boolean {
+  const processStartTime = getOTPProcessStartTime();
+
+  if (!otpVerifiedAt) {
+    return true;
+  }
+
+  const verifiedAt = new Date(otpVerifiedAt).getTime();
+  return Number.isNaN(verifiedAt) || verifiedAt < processStartTime;
+}
 
 // Generate random OTP code
 export function generateOTPCode(): string {

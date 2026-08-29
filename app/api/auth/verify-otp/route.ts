@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { OTP_CONFIG } from '@/lib/otp-utils';
+import { OTP_CONFIG, markOTPVerifiedInCurrentProcess } from '@/lib/otp-utils';
 
 function createSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -107,6 +107,20 @@ export async function POST(request: NextRequest) {
 
     // A valid OTP consumes all outstanding codes for this login email.
     await supabase.from('OTP').delete().eq('email', email);
+    const { error: verificationUpdateError } = await supabase
+      .from('User')
+      .update({ otpVerifiedAt: new Date().toISOString() })
+      .eq('email', email);
+
+    if (verificationUpdateError) {
+      console.error('User OTP verification update error:', verificationUpdateError);
+      return NextResponse.json(
+        { error: 'OTP verified, but account verification could not be saved. Please run the latest database migration.' },
+        { status: 500 }
+      );
+    }
+
+    markOTPVerifiedInCurrentProcess(email);
 
     return NextResponse.json(
       {

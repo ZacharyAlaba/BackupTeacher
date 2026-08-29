@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import Timetable from "@/components/Timetable";
+import StudentSidebar from "@/components/StudentSidebar";
+import { useTeacherTheme } from "@/lib/useTeacherTheme";
 
 interface Subject {
   id: string;
@@ -62,10 +64,12 @@ interface StudentData {
 export default function StudentPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { theme, toggleTheme } = useTeacherTheme();
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileEditing, setProfileEditing] = useState(false);
   const [profileForm, setProfileForm] = useState({
     dateOfBirth: "",
     gender: "",
@@ -77,7 +81,8 @@ export default function StudentPage() {
   const [profileError, setProfileError] = useState("");
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "", otp: "" });
+  const [passwordOtpSent, setPasswordOtpSent] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
@@ -119,6 +124,7 @@ export default function StudentPage() {
     });
     setProfileError("");
     setProfileSuccess(false);
+    setProfileEditing(false);
     setShowProfileModal(true);
   }
 
@@ -173,14 +179,19 @@ export default function StudentPage() {
         body: JSON.stringify({
           currentPassword: passwordForm.currentPassword,
           newPassword: passwordForm.newPassword,
+          otp: passwordForm.otp,
         }),
       });
 
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.status === 202) {
+        setPasswordOtpSent(true);
+        setPasswordError("A verification code was sent to your email. Enter it to continue.");
+      } else if (response.ok) {
         setPasswordSuccess(true);
-        setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "", otp: "" });
+        setPasswordOtpSent(false);
         setTimeout(() => {
           setShowPasswordModal(false);
           setPasswordSuccess(false);
@@ -349,99 +360,45 @@ export default function StudentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 px-4 py-6 text-white light:from-slate-100 light:to-slate-200 light:text-slate-900 md:px-6">
+      <div className="w-full px-4 md:px-6 xl:px-8">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[256px_minmax(0,1fr)]">
+          <StudentSidebar
+            studentName={studentData.name}
+            studentId={studentData.studentId}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onEditProfile={openProfileModal}
+            onChangePassword={() => setShowPasswordModal(true)}
+          />
+          <div className="min-w-0">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="mb-5 rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-xl light:border-slate-200 light:bg-white">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">Welcome, {studentData.name}</h1>
-            <p className="text-slate-400">Student ID: {studentData.studentId}</p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={openProfileModal}
-              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg"
-            >
-              Edit Profile
-            </button>
-            <button
-              onClick={() => setShowPasswordModal(true)}
-              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg"
-            >
-              Change Password
-            </button>
-            <button
-              onClick={() => signOut()}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
-            >
-              Sign Out
-            </button>
+            <h1 className="mb-2 text-3xl font-bold text-white light:text-slate-900">Welcome, {studentData.name}</h1>
+            <p className="text-slate-400 light:text-slate-500">Student ID: {studentData.studentId}</p>
           </div>
         </div>
 
-          <div className="mb-8 flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800 p-4">
-          <div>
-            <p className="text-sm text-slate-400">Need to review your academic records?</p>
-            <p className="text-white font-medium">Attendance and report view are now available.</p>
+        <div className="mb-5 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-lg border border-slate-700 bg-slate-800 p-4 light:border-slate-200 light:bg-white">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 light:text-slate-500">Section</p>
+            <p className="mt-2 text-xl font-bold text-white light:text-slate-900">{studentData.section.name}</p>
           </div>
-          <button
-            onClick={() => router.push("/student/attendance")}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg"
-          >
-            View Attendance
-          </button>
-        </div>
-
-        {/* Student Info Card */}
-        <div className="mb-8 p-6 bg-slate-800 rounded-lg border border-slate-700">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div>
-              <p className="text-slate-400 text-sm">Section</p>
-              <p className="text-2xl font-bold text-white mt-1">{studentData.section.name}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 text-sm">Grade Level</p>
-              <p className="text-2xl font-bold text-white mt-1">{studentData.gradeLevel}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 text-sm">Track</p>
-              <p className="text-2xl font-bold text-white mt-1">{studentData.section.track}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 text-sm">Email</p>
-              <p className="text-white mt-1">{studentData.email}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 text-sm">Date of Birth</p>
-              <p className="text-white mt-1">{studentData.dateOfBirth || "—"}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 text-sm">Gender</p>
-              <p className="text-white mt-1">{studentData.gender || "—"}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 text-sm">Phone</p>
-              <p className="text-white mt-1">{studentData.phone || "—"}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 text-sm">Guardian</p>
-              <p className="text-white mt-1">{studentData.guardianName || "—"}</p>
-            </div>
-            <div>
-              <p className="text-slate-400 text-sm">Guardian Phone</p>
-              <p className="text-white mt-1">{studentData.guardianPhone || "—"}</p>
-            </div>
-            <div className="md:col-span-3 lg:col-span-3">
-              <p className="text-slate-400 text-sm">Address</p>
-              <p className="text-white mt-1">{studentData.address || "—"}</p>
-            </div>
+          <div className="rounded-lg border border-slate-700 bg-slate-800 p-4 light:border-slate-200 light:bg-white">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 light:text-slate-500">Grade Level</p>
+            <p className="mt-2 text-xl font-bold text-white light:text-slate-900">{studentData.gradeLevel}</p>
+          </div>
+          <div className="rounded-lg border border-slate-700 bg-slate-800 p-4 light:border-slate-200 light:bg-white">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 light:text-slate-500">Track</p>
+            <p className="mt-2 text-xl font-bold text-white light:text-slate-900">{studentData.section.track}</p>
           </div>
         </div>
 
         {/* Weekly Schedule */}
-        <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
-          <div className="p-6 border-b border-slate-700 flex items-center justify-between gap-3">
-            <h2 className="text-2xl font-bold text-white">Weekly Schedule</h2>
+        <div id="weekly-schedule" className="overflow-hidden rounded-lg border border-slate-700 bg-slate-800 light:border-slate-200 light:bg-white">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-700 p-6 light:border-slate-200">
+            <h2 className="text-2xl font-bold text-white light:text-slate-900">Weekly Schedule</h2>
             <button
               type="button"
               onClick={downloadWeeklySchedulePdf}
@@ -466,20 +423,20 @@ export default function StudentPage() {
         </div>
 
         {/* Classes List */}
-        <div className="mt-8 bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
-          <div className="p-6 border-b border-slate-700">
-            <h2 className="text-2xl font-bold text-white">All Classes</h2>
+        <div className="mt-8 overflow-hidden rounded-lg border border-slate-700 bg-slate-800 light:border-slate-200 light:bg-white">
+          <div className="border-b border-slate-700 p-6 light:border-slate-200">
+            <h2 className="text-2xl font-bold text-white light:text-slate-900">All Classes</h2>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-700 border-b border-slate-600">
+              <thead className="border-b border-slate-600 bg-slate-700 light:border-slate-200 light:bg-slate-100">
                 <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Subject</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Day</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Time</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Teacher</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Room</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300 light:text-slate-600">Subject</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300 light:text-slate-600">Day</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300 light:text-slate-600">Time</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300 light:text-slate-600">Teacher</th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300 light:text-slate-600">Room</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700">
@@ -492,13 +449,13 @@ export default function StudentPage() {
                 ) : (
                   studentData.schedule.map((block) => (
                     <tr key={block.id} className="hover:bg-slate-700/50 transition">
-                      <td className="px-6 py-4 text-sm text-white font-medium">{block.subject.name}</td>
-                      <td className="px-6 py-4 text-sm text-slate-300">{block.timeSlot.day}</td>
-                      <td className="px-6 py-4 text-sm text-slate-300">
+                      <td className="px-6 py-4 text-sm font-medium text-white light:text-slate-900">{block.subject.name}</td>
+                      <td className="px-6 py-4 text-sm text-slate-300 light:text-slate-600">{block.timeSlot.day}</td>
+                      <td className="px-6 py-4 text-sm text-slate-300 light:text-slate-600">
                         {formatDisplayTime(block.timeSlot.startTime)} - {formatDisplayTime(block.timeSlot.endTime)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-300">{block.teacher.user.name}</td>
-                      <td className="px-6 py-4 text-sm text-slate-300">{block.room || "-"}</td>
+                      <td className="px-6 py-4 text-sm text-slate-300 light:text-slate-600">{block.teacher.user.name}</td>
+                      <td className="px-6 py-4 text-sm text-slate-300 light:text-slate-600">{block.room || "-"}</td>
                     </tr>
                   ))
                 )}
@@ -506,13 +463,28 @@ export default function StudentPage() {
             </table>
           </div>
         </div>
+          </div>
+      </div>
       </div>
 
       {/* Edit Profile Modal */}
       {showProfileModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-8 max-w-lg w-full shadow-lg">
-            <h2 className="text-2xl font-bold text-white mb-4">Edit Profile</h2>
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">Student account</p>
+                <h2 className="mt-1 text-2xl font-bold text-white">My Profile</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowProfileModal(false)}
+                className="text-2xl leading-none text-slate-400 hover:text-white"
+                aria-label="Close profile"
+              >
+                ×
+              </button>
+            </div>
 
             {profileSuccess && (
               <div className="mb-4 p-3 bg-green-900/30 border border-green-700 text-green-300 rounded-lg">
@@ -526,6 +498,41 @@ export default function StudentPage() {
               </div>
             )}
 
+            {!profileEditing ? (
+              <div className="space-y-3">
+                <div className="rounded-lg border border-slate-600 bg-slate-700/50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Name</p>
+                  <p className="mt-1 text-lg font-semibold text-white">{studentData.name}</p>
+                  <p className="mt-1 text-sm text-slate-300">Student ID: {studentData.studentId}</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[
+                    ["Email", studentData.email],
+                    ["Section", studentData.section.name],
+                    ["Grade Level", studentData.gradeLevel],
+                    ["Track", studentData.section.track],
+                    ["Date of Birth", studentData.dateOfBirth],
+                    ["Gender", studentData.gender],
+                    ["Phone", studentData.phone],
+                    ["Guardian", studentData.guardianName],
+                    ["Guardian Phone", studentData.guardianPhone],
+                    ["Address", studentData.address],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-lg border border-slate-600 bg-slate-700/40 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+                      <p className="mt-1 break-words text-sm text-white">{value || "Not provided"}</p>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setProfileEditing(true)}
+                  className="mt-3 w-full rounded-lg bg-cyan-600 px-4 py-2.5 font-semibold text-white hover:bg-cyan-500"
+                >
+                  Edit Profile
+                </button>
+              </div>
+            ) : (
             <form onSubmit={handleProfileSave} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -603,6 +610,7 @@ export default function StudentPage() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}
@@ -610,64 +618,96 @@ export default function StudentPage() {
       {/* Change Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-8 max-w-md w-full shadow-lg">
-            <h2 className="text-2xl font-bold text-white mb-4">Change Password</h2>
+          <div className={theme === "dark"
+            ? "bg-slate-800 border border-slate-700 rounded-xl p-8 max-w-md w-full shadow-lg"
+            : "bg-white border border-slate-200 rounded-xl p-8 max-w-md w-full shadow-lg"}>
+            <h2 className={theme === "dark" ? "text-2xl font-bold text-white mb-4" : "text-2xl font-bold text-slate-900 mb-4"}>Change Password</h2>
 
             {passwordSuccess && (
-              <div className="mb-4 p-3 bg-green-900/30 border border-green-700 text-green-300 rounded-lg">
+              <div className={theme === "dark"
+                ? "mb-4 p-3 bg-green-900/30 border border-green-700 text-green-300 rounded-lg"
+                : "mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded-lg"}>
                 Password changed successfully!
               </div>
             )}
 
             {passwordError && (
-              <div className="mb-4 p-3 bg-red-900/30 border border-red-700 text-red-300 rounded-lg">
+              <div className={theme === "dark"
+                ? "mb-4 p-3 bg-red-900/30 border border-red-700 text-red-300 rounded-lg"
+                : "mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg"}>
                 {passwordError}
               </div>
             )}
 
             <form onSubmit={handlePasswordChange} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Current Password</label>
+                <label className={theme === "dark" ? "block text-sm font-medium text-slate-300 mb-1" : "block text-sm font-medium text-slate-700 mb-1"}>Current Password</label>
                 <input
                   type="password"
                   required
                   value={passwordForm.currentPassword}
                   onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                  className={theme === "dark"
+                    ? "w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                    : "w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-cyan-500"}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">New Password</label>
+                <label className={theme === "dark" ? "block text-sm font-medium text-slate-300 mb-1" : "block text-sm font-medium text-slate-700 mb-1"}>New Password</label>
                 <input
                   type="password"
                   required
                   value={passwordForm.newPassword}
                   onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                  className={theme === "dark"
+                    ? "w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                    : "w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-cyan-500"}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Confirm New Password</label>
+                <label className={theme === "dark" ? "block text-sm font-medium text-slate-300 mb-1" : "block text-sm font-medium text-slate-700 mb-1"}>Confirm New Password</label>
                 <input
                   type="password"
                   required
                   value={passwordForm.confirmPassword}
                   onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                  className={theme === "dark"
+                    ? "w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                    : "w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-cyan-500"}
                 />
               </div>
+
+              {passwordOtpSent && (
+                <div>
+                  <label className={theme === "dark" ? "block text-sm font-medium text-slate-300 mb-1" : "block text-sm font-medium text-slate-700 mb-1"}>Email Verification Code</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    required
+                    value={passwordForm.otp}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, otp: e.target.value.replace(/\D/g, "").slice(0, 6) })}
+                    className={theme === "dark"
+                      ? "w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+                      : "w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-cyan-500"}
+                  />
+                </div>
+              )}
 
               <div className="flex gap-3 mt-6">
                 <button
                   type="button"
                   onClick={() => {
                     setShowPasswordModal(false);
-                    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "", otp: "" });
+                    setPasswordOtpSent(false);
                     setPasswordError("");
                   }}
-                  className="flex-1 px-4 py-2 border border-slate-600 text-slate-200 rounded-lg font-semibold hover:bg-slate-700"
+                  className={theme === "dark"
+                    ? "flex-1 px-4 py-2 border border-slate-600 text-slate-200 rounded-lg font-semibold hover:bg-slate-700"
+                    : "flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50"}
                 >
                   Cancel
                 </button>

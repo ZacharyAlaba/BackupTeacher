@@ -9,8 +9,8 @@ export default function AdminHeader() {
   const router = useRouter();
 
   return (
-    <header className="border-b border-slate-700 bg-slate-900/50">
-      <div className="mx-auto max-w-[1600px] px-6 py-4">
+    <header className="border-b border-slate-700 bg-slate-900/50 light:border-slate-200 light:bg-white/80">
+      <div className="w-full px-4 py-4 md:px-6 xl:px-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2">
@@ -24,10 +24,10 @@ export default function AdminHeader() {
                 />
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider light:text-slate-500">
                   Libertad NHS Senior High
                 </p>
-                <p className="text-sm font-medium text-white">Admin Dashboard</p>
+                <p className="text-sm font-medium text-white light:text-slate-900">Admin Dashboard</p>
               </div>
             </div>
           </div>

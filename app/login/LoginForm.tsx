@@ -96,9 +96,27 @@ export default function LoginForm({ role }: LoginFormProps) {
         return;
       }
 
-      // If OTP was sent successfully, show OTP form
-      setOtpEmail(identifier);
-      setShowOTPForm(true);
+      const data = await res.json();
+
+      if (!data.requiresOtp) {
+        const { signIn } = await import("next-auth/react");
+        const result = await signIn("credentials", {
+          identifier,
+          password,
+          role,
+          redirect: false,
+        });
+
+        if (result?.error) {
+          setError(getErrorMessage());
+        } else {
+          router.push(isAdmin ? "/admin" : isTeacher ? "/teacher" : "/student");
+          router.refresh();
+        }
+      } else {
+        setOtpEmail(data.email || identifier);
+        setShowOTPForm(true);
+      }
       setLoading(false);
     } catch {
       setError("An error occurred. Please try again.");
@@ -128,8 +146,8 @@ export default function LoginForm({ role }: LoginFormProps) {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
-      <div className="mx-auto flex min-h-screen w-full items-center px-4 py-10 md:px-8">
-        <div className="grid w-full overflow-hidden rounded-3xl bg-white shadow-2xl lg:grid-cols-2">
+      <div className="flex min-h-screen w-full items-stretch px-0">
+        <div className="grid min-h-screen w-full overflow-hidden bg-white shadow-2xl lg:grid-cols-2">
           {/* Left Panel with Background Image */}
           <section 
             className="relative hidden flex-col justify-between p-8 text-white md:flex md:p-10 lg:p-12"
@@ -166,7 +184,7 @@ export default function LoginForm({ role }: LoginFormProps) {
           </section>
 
           {/* Right Panel with Login Form */}
-          <section className="p-8 md:p-10 lg:p-12">
+          <section className="flex flex-col justify-center p-8 md:p-12 lg:px-16 lg:py-16">
             <div className="mb-8 lg:hidden">
               <div className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-slate-100">
                 <Image

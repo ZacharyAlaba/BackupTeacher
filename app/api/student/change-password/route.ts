@@ -22,7 +22,7 @@ function createSupabaseAdmin() {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session?.user?.email || session.user.role !== "STUDENT") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -36,9 +36,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
     }
 
-    // Get user
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email! },
+      where: { email: session.user.email },
     });
 
     if (!user) {
@@ -55,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 500 });
     }
 
-    const email = session.user.email!.toLowerCase();
+    const email = session.user.email.toLowerCase();
     const otp = String(rawOtp || "").replace(/\D/g, "");
 
     if (!otp) {
@@ -79,6 +78,7 @@ export async function POST(request: NextRequest) {
       .select("*")
       .eq("email", email)
       .gt("expiresAt", new Date().toISOString());
+
     const matchingOtp = (otpRecords || []).find(
       (record) => String(record.code) === otp && record.attempts < 5
     );
@@ -89,18 +89,18 @@ export async function POST(request: NextRequest) {
 
     await supabase.from("OTP").delete().eq("email", email);
 
-    // Update password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({
       where: { id: user.id },
       data: { password: hashedPassword, otpVerifiedAt: null },
     });
+
     clearOTPSentInCurrentProcess(email);
     clearOTPVerifiedInCurrentProcess(email);
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Password change error:", error);
+    console.error("Student password change error:", error);
     return NextResponse.json({ error: "Failed to change password" }, { status: 500 });
   }
 }

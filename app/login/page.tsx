@@ -4,8 +4,8 @@ import Image from "next/image";
 export default function LoginPage() {
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
-      <div className="mx-auto flex min-h-screen w-full items-center px-4 py-10 md:px-8">
-        <div className="grid w-full overflow-hidden rounded-3xl bg-white shadow-2xl lg:grid-cols-2">
+      <div className="flex min-h-screen w-full items-stretch px-0">
+        <div className="grid min-h-screen w-full overflow-hidden bg-white shadow-2xl lg:grid-cols-2">
           {/* Left Panel with Background Image */}
           <section 
             className="relative hidden flex-col justify-between p-8 text-white md:flex md:p-10 lg:p-12"
@@ -42,7 +42,7 @@ export default function LoginPage() {
           </section>
 
           {/* Right Panel with Portal Selection */}
-          <section className="p-8 md:p-10 lg:p-12">
+          <section className="flex flex-col justify-center p-8 md:p-12 lg:px-16 lg:py-16">
             <div className="mb-8 lg:hidden">
               <div className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-indigo-100">
                 <Image
@@ -60,10 +60,10 @@ export default function LoginPage() {
               <p className="mt-2 text-sm text-slate-600">Select the portal that matches your account.</p>
             </div>
 
-            <div className="mt-10 space-y-4">
+            <div className="mt-10 w-full max-w-2xl space-y-5">
               <Link
                 href="/login/admin"
-                className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-6 transition hover:border-indigo-400 hover:shadow-md"
+                className="flex items-center gap-5 rounded-2xl border border-slate-200 bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-7 transition hover:border-indigo-400 hover:shadow-md"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600 text-white font-bold">
                   A
@@ -76,7 +76,7 @@ export default function LoginPage() {
 
               <Link
                 href="/login/teacher"
-                className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-gradient-to-br from-cyan-50 to-cyan-100/50 p-6 transition hover:border-cyan-400 hover:shadow-md"
+                className="flex items-center gap-5 rounded-2xl border border-slate-200 bg-gradient-to-br from-cyan-50 to-cyan-100/50 p-7 transition hover:border-cyan-400 hover:shadow-md"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-600 text-white font-bold">
                   T
@@ -89,7 +89,7 @@ export default function LoginPage() {
 
               <Link
                 href="/login/student"
-                className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-gradient-to-br from-green-50 to-green-100/50 p-6 transition hover:border-green-400 hover:shadow-md"
+                className="flex items-center gap-5 rounded-2xl border border-slate-200 bg-gradient-to-br from-green-50 to-green-100/50 p-7 transition hover:border-green-400 hover:shadow-md"
               >
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-600 text-white font-bold">
                   S

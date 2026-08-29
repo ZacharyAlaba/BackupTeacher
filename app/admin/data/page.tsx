@@ -85,14 +85,14 @@ export default function DataManagementPage() {
     <>
       <div className="mb-8">
         <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2">SYSTEM</p>
-        <h1 className="text-3xl font-bold text-white">Data Management</h1>
-        <p className="text-sm text-slate-400 mt-2">Back up your whole schedule to a CSV file, restore it, or jump into a category to manage its records.</p>
+        <h1 className="text-3xl font-bold text-white light:text-slate-900">Data Management</h1>
+        <p className="text-sm text-slate-400 mt-2 light:text-slate-600">Back up your whole schedule to a CSV file, restore it, or jump into a category to manage its records.</p>
       </div>
 
       {/* Full system backup / restore */}
-      <div className="mb-8 rounded-lg border border-slate-700 bg-slate-800/50 p-6">
-        <h2 className="text-lg font-semibold text-white mb-1">System Backup</h2>
-        <p className="text-sm text-slate-400 mb-4">Export every teacher, subject, section, time slot and schedule to a single CSV file, or restore from one.</p>
+      <div className="mb-8 rounded-lg border border-slate-700 bg-slate-800/50 p-6 light:border-slate-200 light:bg-white">
+        <h2 className="text-lg font-semibold text-white mb-1 light:text-slate-900">System Backup</h2>
+        <p className="text-sm text-slate-400 mb-4 light:text-slate-600">Export every teacher, subject, section, time slot and schedule to a single CSV file, or restore from one.</p>
 
         <div className="flex flex-wrap gap-3">
           <button
@@ -104,7 +104,7 @@ export default function DataManagementPage() {
             {exporting ? "Exporting..." : "Export All Data"}
           </button>
 
-          <label className="flex items-center gap-2 rounded-lg border border-slate-600 hover:border-slate-500 px-4 py-2.5 text-sm font-medium text-slate-200 transition-all cursor-pointer">
+          <label className="flex items-center gap-2 rounded-lg border border-slate-600 hover:border-slate-500 px-4 py-2.5 text-sm font-medium text-slate-200 transition-all cursor-pointer light:border-slate-300 light:text-slate-700 light:hover:border-slate-400">
             <Upload className="h-4 w-4" />
             {importing ? "Importing..." : "Import Data"}
             <input type="file" accept=".csv" className="hidden" onChange={handleImport} disabled={importing} />
@@ -130,22 +130,22 @@ export default function DataManagementPage() {
       </div>
 
       {/* Per-category management */}
-      <h2 className="text-lg font-semibold text-white mb-4">Manage by Category</h2>
+      <h2 className="text-lg font-semibold text-white mb-4 light:text-slate-900">Manage by Category</h2>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {categories.map((category) => (
           <button
             key={category.href}
             onClick={() => router.push(category.href)}
-            className="group flex items-start gap-4 rounded-lg border border-slate-700 bg-slate-800/50 p-5 text-left hover:bg-slate-800 transition-all"
+            className="group flex items-start gap-4 rounded-lg border border-slate-700 bg-slate-800/50 p-5 text-left hover:bg-slate-800 transition-all light:border-slate-200 light:bg-white light:hover:bg-slate-50"
           >
             <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border ${category.color}`}>
               <category.icon className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-white">{category.label}</p>
-              <p className="text-sm text-slate-400 mt-1">{category.description}</p>
+              <p className="admin-category-label font-medium">{category.label}</p>
+              <p className="text-sm text-slate-400 mt-1 light:text-slate-600">{category.description}</p>
             </div>
-            <ArrowRight className="h-4 w-4 text-slate-500 mt-1 group-hover:translate-x-0.5 transition-transform" />
+            <ArrowRight className="h-4 w-4 text-slate-500 mt-1 group-hover:translate-x-0.5 transition-transform light:text-slate-400" />
           </button>
         ))}
       </div>

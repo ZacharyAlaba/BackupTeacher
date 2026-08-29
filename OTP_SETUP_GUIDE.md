@@ -46,12 +46,21 @@ GMAIL_APP_PASSWORD=vdjmkipobihobgay
 
 ## OTP Flow
 
-### User Login Process
+### First Login Process
 1. User enters email and password on the login page
 2. System verifies credentials
-3. If valid, 6-digit OTP is sent to user's email
+3. On the user's first login, a 6-digit OTP is sent to the user's email
 4. User enters OTP on verification screen
-5. Upon successful OTP verification, user is logged in
+5. Upon successful OTP verification, the account is marked as verified and the user is logged in
+6. Later logins in the same server process use the email/student ID and password without sending another OTP
+7. Restarting `npm run dev` starts a new process; the next login sends one OTP again for demonstration
+
+### Changing a Password
+1. User enters the current password and a new password
+2. System sends a separate verification OTP to the account email
+3. User enters the OTP to confirm the password change
+
+The password-change OTP is separate from first-login verification. After a successful password change, `otpVerifiedAt` is reset so the next login with the new password requires a fresh OTP.
 
 ### OTP Configuration
 - **OTP Length:** 6 digits
@@ -79,7 +88,8 @@ model OTP {
 
 ## API Endpoints
 
-### Send OTP
+ **Response:** `{ success: true, requiresOtp: boolean, email: string }`
+ `requiresOtp` is `false` after the account has completed first-login verification.
 - **Endpoint:** `POST /api/auth/send-otp`
 - **Body:** `{ email: string, password: string }`
 - **Response:** `{ success: true, message: string, email: string }`
@@ -115,7 +125,7 @@ model OTP {
 
 ### "OTP has expired" error
 - OTP is valid for only 5 minutes
-- Click "Resend" button to get a new OTP
+- Stop and restart `npm run dev`, then sign in again to get a new OTP
 
 ### "Maximum OTP verification attempts exceeded"
 - Too many wrong OTP attempts (limit: 5)

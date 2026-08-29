@@ -385,7 +385,11 @@ export default function AdminDashboard() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2">ACADEMIC YEAR 2025-26</p>
-          <h1 className="text-3xl font-bold text-white">Dashboard</h1>
+          <h1 className="text-3xl font-bold text-white light:text-slate-900">Dashboard</h1>
+          <p className="mt-2 text-sm text-slate-400">Libertad NHS scheduling overview and daily administration.</p>
+          {lastUpdated && (
+            <p className="mt-1 text-xs text-slate-500">Live data · Updated {lastUpdated.toLocaleTimeString()}</p>
+          )}
         </div>
         <button
           onClick={() => router.push("/admin/schedule-builder")}
@@ -401,66 +405,66 @@ export default function AdminDashboard() {
       {/* Stat Cards Grid - 5 Columns */}
       <div className="mb-8 grid gap-4 md:grid-cols-5">
         {/* Assigned Classes - Blue */}
-        <div className="group cursor-pointer rounded-lg border border-slate-700 bg-slate-800/50 p-5 hover:bg-slate-800 transition-all overflow-hidden relative" onClick={() => router.push("/admin/schedule-builder")}>
+        <div className="group cursor-pointer rounded-lg border border-slate-700 bg-slate-800/50 p-5 hover:bg-slate-800 transition-all overflow-hidden relative light:bg-white light:hover:bg-slate-50" onClick={() => router.push("/admin/schedule-builder")}>
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-blue-600"></div>
           <div className="mb-4 inline-flex items-center justify-center w-12 h-12 rounded-lg bg-blue-500/20 border border-blue-500/30">
             <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <p className="text-3xl font-bold text-white mb-1">{stats?.schedules || 0}</p>
+          <p className="text-3xl font-bold text-white light:text-slate-900 mb-1">{stats?.schedules || 0}</p>
           <p className="text-sm font-medium text-slate-300 mb-1">Assigned Classes</p>
           <p className="text-xs text-slate-400">Active assignments</p>
         </div>
 
         {/* Teachers - Green */}
-        <div className="group cursor-pointer rounded-lg border border-slate-700 bg-slate-800/50 p-5 hover:bg-slate-800 transition-all overflow-hidden relative" onClick={() => router.push("/admin/teachers")}>
+        <div className="group cursor-pointer rounded-lg border border-slate-700 bg-slate-800/50 p-5 hover:bg-slate-800 transition-all overflow-hidden relative light:bg-white light:hover:bg-slate-50" onClick={() => router.push("/admin/teachers")}>
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-green-600"></div>
           <div className="mb-4 inline-flex items-center justify-center w-12 h-12 rounded-lg bg-green-500/20 border border-green-500/30">
             <svg className="w-6 h-6 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
           </div>
-          <p className="text-3xl font-bold text-white mb-1">{stats?.teachers || 0}</p>
+          <p className="text-3xl font-bold text-white light:text-slate-900 mb-1">{stats?.teachers || 0}</p>
           <p className="text-sm font-medium text-slate-300 mb-1">Teachers</p>
           <p className="text-xs text-slate-400">Currently active</p>
         </div>
 
         {/* Subjects - Purple */}
-        <div className="group cursor-pointer rounded-lg border border-slate-700 bg-slate-800/50 p-5 hover:bg-slate-800 transition-all overflow-hidden relative" onClick={() => router.push("/admin/subjects")}>
+        <div className="group cursor-pointer rounded-lg border border-slate-700 bg-slate-800/50 p-5 hover:bg-slate-800 transition-all overflow-hidden relative light:bg-white light:hover:bg-slate-50" onClick={() => router.push("/admin/subjects")}>
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-purple-600"></div>
           <div className="mb-4 inline-flex items-center justify-center w-12 h-12 rounded-lg bg-purple-500/20 border border-purple-500/30">
             <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
           </div>
-          <p className="text-3xl font-bold text-white mb-1">{stats?.subjects || 0}</p>
+          <p className="text-3xl font-bold text-white light:text-slate-900 mb-1">{stats?.subjects || 0}</p>
           <p className="text-sm font-medium text-slate-300 mb-1">Subjects</p>
           <p className="text-xs text-slate-400">In curriculum</p>
         </div>
 
         {/* Sections - Orange */}
-        <div className="group cursor-pointer rounded-lg border border-slate-700 bg-slate-800/50 p-5 hover:bg-slate-800 transition-all overflow-hidden relative" onClick={() => router.push("/admin/sections")}>
+        <div className="group cursor-pointer rounded-lg border border-slate-700 bg-slate-800/50 p-5 hover:bg-slate-800 transition-all overflow-hidden relative light:bg-white light:hover:bg-slate-50" onClick={() => router.push("/admin/sections")}>
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 to-orange-600"></div>
           <div className="mb-4 inline-flex items-center justify-center w-12 h-12 rounded-lg bg-orange-500/20 border border-orange-500/30">
             <svg className="w-6 h-6 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
           </div>
-          <p className="text-3xl font-bold text-white mb-1">{stats?.sections || 0}</p>
+          <p className="text-3xl font-bold text-white light:text-slate-900 mb-1">{stats?.sections || 0}</p>
           <p className="text-sm font-medium text-slate-300 mb-1">Sections</p>
           <p className="text-xs text-slate-400">In curriculum</p>
         </div>
 
         {/* Students - Teal */}
-        <div className="group cursor-pointer rounded-lg border border-slate-700 bg-slate-800/50 p-5 hover:bg-slate-800 transition-all overflow-hidden relative" onClick={() => router.push("/admin/students")}>
+        <div className="group cursor-pointer rounded-lg border border-slate-700 bg-slate-800/50 p-5 hover:bg-slate-800 transition-all overflow-hidden relative light:bg-white light:hover:bg-slate-50" onClick={() => router.push("/admin/students")}>
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 to-teal-600"></div>
           <div className="mb-4 inline-flex items-center justify-center w-12 h-12 rounded-lg bg-cyan-500/20 border border-cyan-500/30">
             <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 8.048M12 4.354a4 4 0 110 8.048M12 4.354L5.73 9.354M12 4.354l6.27 5M4.354 12c0 1.108.358 2.135.972 2.98m14.348 0c.614-.845.972-1.872.972-2.98m-14.348 0H2m20.348 0h2m-16.696 8c1.108 0 2.135.358 2.98.972m0 0a4 4 0 11-8.048 0m8.048 0l-5-5m0 0l-5 5" />
             </svg>
           </div>
-          <p className="text-3xl font-bold text-white mb-1">{stats?.students || 0}</p>
+          <p className="text-3xl font-bold text-white light:text-slate-900 mb-1">{stats?.students || 0}</p>
           <p className="text-sm font-medium text-slate-300 mb-1">Students</p>
           <p className="text-xs text-slate-400">Currently enrolled</p>
         </div>
@@ -487,18 +491,18 @@ export default function AdminDashboard() {
         {/* Main Content Grid - Statistics and Alerts */}
         <div className="mt-6 grid gap-6 grid-cols-1 lg:grid-cols-3">
           {/* Left: Statistics Charts (2/3 width) */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="lg:col-span-2 grid grid-cols-1 gap-4 rounded-lg border border-slate-700 bg-slate-800/50 p-4 lg:grid-cols-2 light:bg-white">
             {/* Grade Distribution */}
-            <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-6">
-              <h2 className="text-sm font-bold text-white mb-6">Grade Distribution</h2>
+            <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-5 light:bg-slate-50">
+              <h2 className="text-sm font-bold text-white light:text-slate-900 mb-4">Grade Distribution</h2>
               <div className="flex flex-col items-center">
                 {gradeStats.length === 0 ? (
                   <p className="text-xs text-slate-400 py-12">No grade data available</p>
                 ) : (
                   <div className="w-full">
-                    <div className="flex justify-center mb-8">
-                      <div className="relative" style={{ width: '220px', height: '220px' }}>
-                        <svg width="220" height="220" viewBox="0 0 220 220" className="drop-shadow-lg">
+                    <div className="flex justify-center mb-5">
+                      <div className="relative" style={{ width: '180px', height: '180px' }}>
+                        <svg width="180" height="180" viewBox="0 0 220 220" className="drop-shadow-lg">
                           {gradeStats.map((item, index) => {
                             const total = gradeStats.reduce((sum, s) => sum + s.value, 0);
                             const percentage = item.value / total;
@@ -528,12 +532,12 @@ export default function AdminDashboard() {
                           })}
                         </svg>
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <div className="text-2xl font-bold text-white">{gradeStats.reduce((sum, s) => sum + s.value, 0)}</div>
+                          <div className="text-2xl font-bold text-white light:text-slate-900">{gradeStats.reduce((sum, s) => sum + s.value, 0)}</div>
                           <div className="text-xs text-slate-400 uppercase tracking-wider">Total</div>
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 mt-6">
+                    <div className="grid grid-cols-2 gap-3 mt-4">
                       {gradeStats.map((item, index) => {
                         const colors = ['#3b82f6', '#ef4444'];
                         const color = colors[index % colors.length];
@@ -556,16 +560,16 @@ export default function AdminDashboard() {
             </div>
 
             {/* Strand Distribution */}
-            <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-6">
-              <h2 className="text-sm font-bold text-white mb-6">Strand Distribution</h2>
+            <div className="rounded-lg border border-slate-700 bg-slate-900/40 p-5 light:bg-slate-50">
+              <h2 className="text-sm font-bold text-white light:text-slate-900 mb-4">Strand Distribution</h2>
               <div className="flex flex-col items-center">
                 {strandStats.length === 0 ? (
                   <p className="text-xs text-slate-400 py-12">No strand data available</p>
                 ) : (
                   <div className="w-full">
-                    <div className="flex justify-center mb-8">
-                      <div className="relative" style={{ width: '220px', height: '220px' }}>
-                        <svg width="220" height="220" viewBox="0 0 220 220" className="drop-shadow-lg">
+                    <div className="flex justify-center mb-5">
+                      <div className="relative" style={{ width: '180px', height: '180px' }}>
+                        <svg width="180" height="180" viewBox="0 0 220 220" className="drop-shadow-lg">
                           {strandStats.map((item, index) => {
                             const total = strandStats.reduce((sum, s) => sum + s.value, 0);
                             const percentage = item.value / total;
@@ -595,12 +599,12 @@ export default function AdminDashboard() {
                           })}
                         </svg>
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <div className="text-2xl font-bold text-white">{strandStats.reduce((sum, s) => sum + s.value, 0)}</div>
+                          <div className="text-2xl font-bold text-white light:text-slate-900">{strandStats.reduce((sum, s) => sum + s.value, 0)}</div>
                           <div className="text-xs text-slate-400 uppercase tracking-wider">Sections</div>
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 mt-6">
+                    <div className="grid grid-cols-2 gap-3 mt-4">
                       {strandStats.map((item, index) => {
                         const colors = ['#06b6d4', '#ec4899', '#10b981', '#f97316'];
                         const color = colors[index % colors.length];
@@ -626,9 +630,9 @@ export default function AdminDashboard() {
           {/* Right: Staff Load & Alerts (1/3 width) */}
           <div className="space-y-4">
             {/* Staff Load Widget */}
-            <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-5">
+            <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-5 light:bg-white">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-white">Staff Load</h3>
+                <h3 className="text-sm font-bold text-white light:text-slate-900">Staff Load</h3>
                 <button
                   onClick={() => router.push("/admin/workload")}
                   className="text-xs text-slate-400 hover:text-slate-200 transition"
@@ -662,9 +666,9 @@ export default function AdminDashboard() {
             </div>
 
             {/* System Alerts Widget */}
-            <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-5">
+            <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-5 light:bg-white">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-white">System Alerts</h3>
+                <h3 className="text-sm font-bold text-white light:text-slate-900">System Alerts</h3>
                 {alerts.length > 0 && (
                   <span className="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-red-500 rounded-full">
                     {alerts.length}
@@ -693,14 +697,14 @@ export default function AdminDashboard() {
         </div>
 
         {/* Section Enrollment Widget */}
-        <div className="mt-8 rounded-lg border border-slate-700 bg-slate-800/50 p-5">
+        <div className="mt-8 rounded-lg border border-slate-700 bg-slate-800/50 p-5 light:bg-white">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-white">Section Enrollment</h3>
+            <h3 className="text-sm font-bold text-white light:text-slate-900">Section Enrollment</h3>
             <span className="text-xs text-slate-400">{sectionEnrollment.length} Sections</span>
           </div>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {sectionEnrollment.map((section) => (
-              <div key={section.sectionId} className="rounded-lg border border-slate-700 bg-slate-900/50 p-4 hover:bg-slate-900 transition">
+              <div key={section.sectionId} className="rounded-lg border border-slate-700 bg-slate-900/50 p-4 hover:bg-slate-900 transition light:bg-slate-50 light:hover:bg-white">
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <div className="text-xs font-semibold text-slate-200">{section.sectionName}</div>

@@ -19,6 +19,158 @@ body {
   background: var(--background);
 }
 
+/* Shared dark palette for teacher and student portals. */
+html:not(.light) {
+  --background: #061426;
+  --foreground: #f4f8ff;
+}
+
+html:not(.light) body {
+  background: #061426;
+}
+
+html:not(.light) [class*="bg-slate-950"] {
+  background-color: #040e1c !important;
+}
+
+html:not(.light) [class*="bg-slate-900"] {
+  background-color: #0a1f36 !important;
+}
+
+html:not(.light) [class*="bg-slate-800"] {
+  background-color: #122d49 !important;
+}
+
+html:not(.light) [class*="bg-slate-700"] {
+  background-color: #1d4261 !important;
+}
+
+html:not(.light) [class*="border-slate-700"] {
+  border-color: #2d5878 !important;
+}
+
+html:not(.light) [class*="border-slate-600"] {
+  border-color: #397092 !important;
+}
+
+html:not(.light) [class*="text-slate-400"] {
+  color: #9dbbd2 !important;
+}
+
+html:not(.light) [class*="text-slate-300"] {
+  color: #c7dced !important;
+}
+
+html:not(.light) [class*="text-slate-200"] {
+  color: #e0edf8 !important;
+}
+
+html.light {
+  --background: #eef4f8;
+  --foreground: #10243a;
+}
+
+html.light body {
+  background: #eef4f8;
+}
+
+html.light [class*="text-slate-500"] {
+  color: #526b80 !important;
+}
+
+html.light [class*="text-slate-400"] {
+  color: #607b90 !important;
+}
+
+html.light [class*="text-slate-300"] {
+  color: #304c63 !important;
+}
+
+html.light [class*="text-slate-200"] {
+  color: #304c63 !important;
+}
+
+html.light [class*="border-slate-700"] {
+  border-color: #c6d6e1 !important;
+}
+
+html.light [class*="border-slate-600"] {
+  border-color: #b2c7d5 !important;
+}
+
+html.light .admin-shell .text-white:not(button) {
+  color: #10243a !important;
+}
+
+html.light .admin-shell .text-amber-100,
+html.light .admin-shell .text-amber-200\/70 {
+  color: #8a4b08 !important;
+}
+
+html.light .admin-shell .bg-amber-50\/10 {
+  background-color: #fff8e7 !important;
+}
+
+html.light .admin-shell [class*="bg-slate-900"],
+html.light .admin-shell [class*="bg-slate-800"],
+html.light .admin-shell [class*="bg-slate-700"],
+html.light .admin-shell [class*="bg-\["] {
+  background-color: #ffffff !important;
+}
+
+html.light .admin-shell .bg-gradient-to-br {
+  background-image: none !important;
+  background-color: #eef4f8 !important;
+}
+
+html.light .admin-shell [class*="text-white"] {
+  color: #10243a !important;
+}
+
+html.light .admin-shell button [class*="text-white"],
+html.light .admin-shell button.text-white,
+html.light .admin-shell [class*="bg-indigo-"] [class*="text-white"],
+html.light .admin-shell [class*="bg-blue-"] [class*="text-white"],
+html.light .admin-shell [class*="bg-green-"] [class*="text-white"],
+html.light .admin-shell [class*="bg-red-"] [class*="text-white"] {
+  color: #ffffff !important;
+}
+
+html.light .admin-shell input,
+html.light .admin-shell select,
+html.light .admin-shell textarea {
+  background-color: #ffffff !important;
+  color: #10243a !important;
+  border-color: #b2c7d5 !important;
+}
+
+html.light .admin-shell table thead,
+html.light .admin-shell table thead tr {
+  background-color: #e7f0f5 !important;
+}
+
+html.light .admin-shell table tbody tr,
+html.light .admin-shell table tbody tr:nth-child(even),
+html.light .admin-shell table tbody tr:nth-child(odd) {
+  background-color: #ffffff !important;
+}
+
+html.light .admin-shell .admin-category-label {
+  color: #10243a !important;
+}
+
+html.light .admin-shell aside [class*="bg-slate-700"] {
+  background-color: #dbe6ee !important;
+}
+
+html.light .admin-shell aside [class*="hover:bg-slate-700"]:hover {
+  background-color: #cbd9e3 !important;
+}
+
+html:not(.light) .admin-shell .admin-category-label {
+  color: #ffffff !important;
+}
+
 @keyframes floatSlow {
   0% {
     transform: translateY(0px);

@@ -1,9 +1,10 @@
 "use client";
 
 import Timetable from "@/components/Timetable";
+import TeacherSidebar from "@/components/TeacherSidebar";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { signOut, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useTeacherTheme } from "@/lib/useTeacherTheme";
@@ -47,11 +48,13 @@ export default function TeacherDashboard() {
   const [teacherProfile, setTeacherProfile] = useState<TeacherProfile | null>(null);
   const [source, setSource] = useState<"database" | "demo" | "loading">("loading");
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileEditing, setProfileEditing] = useState(false);
   const [profileForm, setProfileForm] = useState({ dateOfBirth: "", gender: "", phone: "", address: "" });
   const [profileError, setProfileError] = useState("");
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "", otp: "" });
+  const [passwordOtpSent, setPasswordOtpSent] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
@@ -211,6 +214,7 @@ export default function TeacherDashboard() {
     });
     setProfileError("");
     setProfileSuccess(false);
+    setProfileEditing(false);
     setShowProfileModal(true);
   }
 
@@ -265,14 +269,19 @@ export default function TeacherDashboard() {
         body: JSON.stringify({
           currentPassword: passwordForm.currentPassword,
           newPassword: passwordForm.newPassword,
+          otp: passwordForm.otp,
         }),
       });
 
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.status === 202) {
+        setPasswordOtpSent(true);
+        setPasswordError("A verification code was sent to your email. Enter it to continue.");
+      } else if (response.ok) {
         setPasswordSuccess(true);
-        setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "", otp: "" });
+        setPasswordOtpSent(false);
         setTimeout(() => {
           setShowPasswordModal(false);
           setPasswordSuccess(false);
@@ -287,9 +296,19 @@ export default function TeacherDashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-slate-100 light:bg-none light:from-transparent light:via-transparent light:to-transparent light:bg-slate-100 light:text-slate-900">
-      <div className="mx-auto max-w-7xl px-4 py-8 md:px-8">
-        <header className="rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="w-full px-4 py-6 md:px-6 xl:px-8">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[256px_minmax(0,1fr)]">
+          <TeacherSidebar
+            teacherName={teacherProfile?.name || session?.user?.name || "Teacher"}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onEditProfile={openProfileModal}
+            onChangePassword={() => setShowPasswordModal(true)}
+          />
+
+          <div className="min-w-0">
+            <header className="rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
+          <div className="flex flex-col gap-5">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 light:text-slate-500">
                 Libertad NHS Senior High
@@ -300,70 +319,10 @@ export default function TeacherDashboard() {
                 Data source: {source === "loading" ? "loading..." : source}
               </p>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => router.push("/teacher/attendance")}
-                className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-400"
-              >
-                Attendance
-              </button>
-              <button
-                onClick={openProfileModal}
-                className="rounded-xl bg-slate-700 hover:bg-slate-600 px-4 py-2 text-sm font-semibold text-white transition light:bg-slate-200 light:text-slate-900 light:hover:bg-slate-300"
-              >
-                Edit Profile
-              </button>
-              <button
-                onClick={() => setShowPasswordModal(true)}
-                className="rounded-xl bg-slate-700 hover:bg-slate-600 px-4 py-2 text-sm font-semibold text-white transition light:bg-slate-200 light:text-slate-900 light:hover:bg-slate-300"
-              >
-                Change Password
-              </button>
-              <button
-                onClick={toggleTheme}
-                className="rounded-xl bg-slate-700 hover:bg-slate-600 px-4 py-2 text-sm font-semibold text-white transition light:bg-slate-200 light:text-slate-900 light:hover:bg-slate-300"
-              >
-                {theme === "dark" ? "Light Mode" : "Dark Mode"}
-              </button>
-              <button
-                onClick={() => signOut({ callbackUrl: "/" })}
-                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
-              >
-                Logout
-              </button>
-            </div>
           </div>
-        </header>
+            </header>
 
-        {teacherProfile && (
-          <section className="mt-6 rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
-            <h2 className="text-xl font-semibold text-white light:text-slate-900">Your Profile</h2>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4 light:border-slate-200 light:bg-slate-50">
-                <p className="text-sm text-slate-400 light:text-slate-500">Email</p>
-                <p className="mt-1 text-white light:text-slate-900">{teacherProfile.email}</p>
-              </div>
-              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4 light:border-slate-200 light:bg-slate-50">
-                <p className="text-sm text-slate-400 light:text-slate-500">Date of Birth</p>
-                <p className="mt-1 text-white light:text-slate-900">{teacherProfile.dateOfBirth || "—"}</p>
-              </div>
-              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4 light:border-slate-200 light:bg-slate-50">
-                <p className="text-sm text-slate-400 light:text-slate-500">Gender</p>
-                <p className="mt-1 text-white light:text-slate-900">{teacherProfile.gender || "—"}</p>
-              </div>
-              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4 light:border-slate-200 light:bg-slate-50">
-                <p className="text-sm text-slate-400 light:text-slate-500">Phone</p>
-                <p className="mt-1 text-white light:text-slate-900">{teacherProfile.phone || "—"}</p>
-              </div>
-              <div className="lg:col-span-2 rounded-2xl border border-slate-700 bg-slate-800 p-4 light:border-slate-200 light:bg-slate-50">
-                <p className="text-sm text-slate-400 light:text-slate-500">Address</p>
-                <p className="mt-1 text-white light:text-slate-900">{teacherProfile.address || "—"}</p>
-              </div>
-            </div>
-          </section>
-        )}
-
-        <section className="mt-6 grid gap-4 lg:grid-cols-3">
+        <section className="mt-4 grid gap-4 lg:grid-cols-3">
           <article className="rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 light:text-slate-500">Today</p>
             <h2 className="mt-2 text-lg font-semibold text-white light:text-slate-900">{today} Classes</h2>
@@ -387,7 +346,7 @@ export default function TeacherDashboard() {
           </article>
         </section>
 
-        <section className="mt-6 rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
+        <section id="weekly-timetable" className="mt-4 rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
           <h2 className="text-xl font-semibold text-white light:text-slate-900">Today&apos;s Class Details</h2>
           {todayClasses.length === 0 ? (
             <p className="mt-3 text-sm text-slate-400 light:text-slate-500">No classes scheduled for today.</p>
@@ -417,7 +376,7 @@ export default function TeacherDashboard() {
           )}
         </section>
 
-        <section className="mt-6 rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
+        <section className="mt-4 rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <h2 className="text-xl font-semibold text-white light:text-slate-900">Weekly Timetable</h2>
             <button
@@ -430,11 +389,24 @@ export default function TeacherDashboard() {
           <Timetable schedule={schedule} timeSlots={timeSlots} />
         </section>
 
-        {/* Edit Profile Modal */}
+        {/* My Profile Modal */}
         {showProfileModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white border border-slate-200 rounded-xl p-8 max-w-lg w-full shadow-lg">
-              <h2 className="text-2xl font-bold text-slate-900 mb-4">Edit Profile</h2>
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-8 max-w-lg w-full shadow-lg light:bg-white light:border-slate-200">
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300 light:text-indigo-600">Teacher account</p>
+                  <h2 className="mt-1 text-2xl font-bold text-white light:text-slate-900">My Profile</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowProfileModal(false)}
+                  className="text-2xl leading-none text-slate-400 hover:text-white light:hover:text-slate-700"
+                  aria-label="Close profile"
+                >
+                  ×
+                </button>
+              </div>
 
               {profileSuccess && (
                 <div className="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded-lg">
@@ -448,23 +420,52 @@ export default function TeacherDashboard() {
                 </div>
               )}
 
+              {!profileEditing ? (
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-slate-600 bg-slate-700/50 p-4 light:border-slate-200 light:bg-slate-100">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 light:text-slate-500">Name</p>
+                    <p className="mt-1 text-lg font-semibold text-white light:text-slate-900">{teacherProfile?.name || "Teacher"}</p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {[
+                      ["Email", teacherProfile?.email],
+                      ["Date of Birth", teacherProfile?.dateOfBirth],
+                      ["Gender", teacherProfile?.gender],
+                      ["Phone", teacherProfile?.phone],
+                      ["Address", teacherProfile?.address],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-lg border border-slate-600 bg-slate-700/50 p-3 light:border-slate-200 light:bg-white">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 light:text-slate-500">{label}</p>
+                        <p className="mt-1 break-words text-sm text-white light:text-slate-900">{value || "Not provided"}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setProfileEditing(true)}
+                    className="mt-3 w-full rounded-lg bg-indigo-600 px-4 py-2.5 font-semibold text-white hover:bg-indigo-500"
+                  >
+                    Edit Profile
+                  </button>
+                </div>
+              ) : (
               <form onSubmit={handleProfileSave} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Date of Birth</label>
+                    <label className="block text-sm font-medium text-slate-300 light:text-slate-700 mb-1">Date of Birth</label>
                     <input
                       type="date"
                       value={profileForm.dateOfBirth}
                       onChange={(e) => setProfileForm({ ...profileForm, dateOfBirth: e.target.value })}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"
+                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500 light:bg-white light:border-slate-300 light:text-slate-900"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Gender</label>
+                    <label className="block text-sm font-medium text-slate-300 light:text-slate-700 mb-1">Gender</label>
                     <select
                       value={profileForm.gender}
                       onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"
+                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500 light:bg-white light:border-slate-300 light:text-slate-900"
                     >
                       <option value="">Select gender</option>
                       <option value="Male">Male</option>
@@ -472,23 +473,23 @@ export default function TeacherDashboard() {
                     </select>
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
+                    <label className="block text-sm font-medium text-slate-300 light:text-slate-700 mb-1">Phone</label>
                     <input
                       type="tel"
                       value={profileForm.phone}
                       onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"
+                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500 light:bg-white light:border-slate-300 light:text-slate-900"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
+                  <label className="block text-sm font-medium text-slate-300 light:text-slate-700 mb-1">Address</label>
                   <textarea
                     value={profileForm.address}
                     onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
                     rows={2}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500 light:bg-white light:border-slate-300 light:text-slate-900"
                   />
                 </div>
 
@@ -496,7 +497,7 @@ export default function TeacherDashboard() {
                   <button
                     type="button"
                     onClick={() => setShowProfileModal(false)}
-                    className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50"
+                    className="flex-1 px-4 py-2 border border-slate-600 text-slate-300 rounded-lg font-semibold hover:bg-slate-700 light:border-slate-300 light:text-slate-700 light:hover:bg-slate-50"
                   >
                     Cancel
                   </button>
@@ -508,6 +509,7 @@ export default function TeacherDashboard() {
                   </button>
                 </div>
               </form>
+              )}
             </div>
           </div>
         )}
@@ -515,64 +517,96 @@ export default function TeacherDashboard() {
         {/* Password Change Modal */}
         {showPasswordModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white border border-slate-200 rounded-xl p-8 max-w-md w-full shadow-lg">
-              <h2 className="text-2xl font-bold text-slate-900 mb-4">Change Password</h2>
+            <div className={theme === "dark"
+              ? "bg-slate-800 border border-slate-700 rounded-xl p-8 max-w-md w-full shadow-lg"
+              : "bg-white border border-slate-200 rounded-xl p-8 max-w-md w-full shadow-lg"}>
+              <h2 className={theme === "dark" ? "text-2xl font-bold text-white mb-4" : "text-2xl font-bold text-slate-900 mb-4"}>Change Password</h2>
 
               {passwordSuccess && (
-                <div className="mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded-lg">
+                <div className={theme === "dark"
+                  ? "mb-4 p-3 bg-green-900/30 border border-green-700 text-green-300 rounded-lg"
+                  : "mb-4 p-3 bg-green-100 border border-green-300 text-green-700 rounded-lg"}>
                   Password changed successfully!
                 </div>
               )}
 
               {passwordError && (
-                <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg">
+                <div className={theme === "dark"
+                  ? "mb-4 p-3 bg-red-900/30 border border-red-700 text-red-300 rounded-lg"
+                  : "mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-lg"}>
                   {passwordError}
                 </div>
               )}
 
               <form onSubmit={handlePasswordChange} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Current Password</label>
+                  <label className={theme === "dark" ? "block text-sm font-medium text-slate-300 mb-1" : "block text-sm font-medium text-slate-700 mb-1"}>Current Password</label>
                   <input
                     type="password"
                     required
                     value={passwordForm.currentPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"
+                    className={theme === "dark"
+                      ? "w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+                      : "w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">New Password</label>
+                  <label className={theme === "dark" ? "block text-sm font-medium text-slate-300 mb-1" : "block text-sm font-medium text-slate-700 mb-1"}>New Password</label>
                   <input
                     type="password"
                     required
                     value={passwordForm.newPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"
+                    className={theme === "dark"
+                      ? "w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+                      : "w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Confirm New Password</label>
+                  <label className={theme === "dark" ? "block text-sm font-medium text-slate-300 mb-1" : "block text-sm font-medium text-slate-700 mb-1"}>Confirm New Password</label>
                   <input
                     type="password"
                     required
                     value={passwordForm.confirmPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"
+                    className={theme === "dark"
+                      ? "w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+                      : "w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"}
                   />
                 </div>
+
+                {passwordOtpSent && (
+                  <div>
+                    <label className={theme === "dark" ? "block text-sm font-medium text-slate-300 mb-1" : "block text-sm font-medium text-slate-700 mb-1"}>Email Verification Code</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      required
+                      value={passwordForm.otp}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, otp: e.target.value.replace(/\D/g, "").slice(0, 6) })}
+                      className={theme === "dark"
+                        ? "w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+                        : "w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"}
+                    />
+                  </div>
+                )}
 
                 <div className="flex gap-3 mt-6">
                   <button
                     type="button"
                     onClick={() => {
                       setShowPasswordModal(false);
-                      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "", otp: "" });
+                      setPasswordOtpSent(false);
                       setPasswordError("");
                     }}
-                    className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50"
+                    className={theme === "dark"
+                      ? "flex-1 px-4 py-2 border border-slate-600 text-slate-200 rounded-lg font-semibold hover:bg-slate-700"
+                      : "flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50"}
                   >
                     Cancel
                   </button>
@@ -587,6 +621,8 @@ export default function TeacherDashboard() {
             </div>
           </div>
         )}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -23,6 +23,7 @@ model User {
   password  String
   name      String
   role      Role     @default(TEACHER)
+  otpVerifiedAt DateTime?
   teacher   Teacher?
   student   Student?
   createdAt DateTime @default(now())
@@ -150,6 +151,7 @@ enum AttendanceStatus {
   ABSENT
   LATE
   LEFT_EARLY
+  EXCUSED
 }
 
 model AttendanceRecord {

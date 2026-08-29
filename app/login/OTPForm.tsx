@@ -16,7 +16,6 @@ export default function OTPForm({ email, password, role, onBack }: OTPFormProps)
   const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [resendLoading, setResendLoading] = useState(false);
 
   const isAdmin = role === "ADMIN";
   const isTeacher = role === "TEACHER";
@@ -71,38 +70,10 @@ export default function OTPForm({ email, password, role, onBack }: OTPFormProps)
     }
   };
 
-  const handleResendOTP = async () => {
-    setError("");
-    setResendLoading(true);
-
-    try {
-      const sendRes = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!sendRes.ok) {
-        const data = await sendRes.json();
-        setError(data.error || "Failed to resend OTP");
-        setResendLoading(false);
-        return;
-      }
-
-      setOtp("");
-      setError("");
-      alert("OTP has been resent to your email");
-      setResendLoading(false);
-    } catch (err) {
-      setError("Failed to resend OTP. Please try again.");
-      setResendLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
-      <div className="mx-auto flex min-h-screen w-full items-center px-4 py-10 md:px-8">
-        <div className="grid w-full overflow-hidden rounded-3xl bg-white shadow-2xl lg:grid-cols-2">
+      <div className="flex min-h-screen w-full items-stretch px-0">
+        <div className="grid min-h-screen w-full overflow-hidden bg-white shadow-2xl lg:grid-cols-2">
           {/* Left Panel with Background Image */}
           <section 
             className="relative hidden flex-col justify-between p-8 text-white md:flex md:p-10 lg:p-12"
@@ -139,7 +110,7 @@ export default function OTPForm({ email, password, role, onBack }: OTPFormProps)
           </section>
 
           {/* Right Panel with OTP Form */}
-          <section className="p-8 md:p-10 lg:p-12">
+          <section className="flex flex-col justify-center p-8 md:p-12 lg:px-16 lg:py-16">
             <div className="mb-8 lg:hidden">
               <div className="inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-slate-100">
                 <Image
@@ -199,13 +170,10 @@ export default function OTPForm({ email, password, role, onBack }: OTPFormProps)
             </form>
 
             <div className="mt-6 space-y-3 text-sm text-slate-600">
-              <button
-                onClick={handleResendOTP}
-                disabled={resendLoading}
-                className="w-full font-semibold text-indigo-700 hover:text-indigo-600 disabled:opacity-60"
-              >
-                {resendLoading ? "Resending..." : "Didn't receive the code? Resend"}
-              </button>
+              <p className="text-center">
+                One OTP is sent per server run. Logging out and logging in again will not send another code.
+                Restart <code>npm run dev</code>, then log in again to receive a new OTP.
+              </p>
               <button
                 onClick={onBack}
                 className="block w-full font-semibold text-indigo-700 hover:text-indigo-600"

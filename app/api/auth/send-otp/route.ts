@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { generateOTPCode, sendOTPEmail, getOTPExpiryTime } from '@/lib/otp-utils';
+import {
+  generateOTPCode,
+  sendOTPEmail,
+  getOTPExpiryTime,
+  isOTPRequiredForCurrentProcess,
+  hasOTPSentInCurrentProcess,
+  markOTPSentInCurrentProcess,
+  hasOTPVerifiedInCurrentProcess,
+} from '@/lib/otp-utils';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 
@@ -18,7 +26,8 @@ function createSupabaseAdmin() {
 export async function POST(request: NextRequest) {
   try {
     const { email: rawEmail, password } = await request.json();
-    const email = String(rawEmail || '').trim().toLowerCase();
+    const identifier = String(rawEmail || '').trim();
+    const email = identifier.toLowerCase();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -36,11 +45,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user exists with correct password
-    const { data: user, error: userError } = await supabase
+    let { data: user, error: userError } = await supabase
       .from('User')
       .select('*')
       .eq('email', email)
       .maybeSingle();
+
+    if (!user && !userError) {
+      const { data: student } = await supabase
+        .from('Student')
+        .select('User(*)')
+        .eq('studentId', identifier)
+        .maybeSingle();
+      user = Array.isArray((student as any)?.User)
+        ? (student as any).User[0]
+        : (student as any)?.User;
+    }
 
     if (userError) {
       console.error('User fetch error:', userError);
@@ -66,6 +86,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (hasOTPVerifiedInCurrentProcess(user.email) || !isOTPRequiredForCurrentProcess(user.otpVerifiedAt)) {
+      return NextResponse.json({ success: true, requiresOtp: false, email: user.email });
+    }
+
+    const userEmail = String(user.email).toLowerCase();
+
+    // A verified user skips OTP until the development server is restarted.
+    if (hasOTPSentInCurrentProcess(userEmail)) {
+      return NextResponse.json({ success: true, requiresOtp: true, email: userEmail });
+    }
+
     // Generate OTP
     const otpCode = generateOTPCode();
     const expiryTime = getOTPExpiryTime();
@@ -76,7 +107,7 @@ export async function POST(request: NextRequest) {
 
     const { error: insertError } = await supabase.from('OTP').insert({
       id: randomUUID(),
-      email,
+      email: userEmail,
       code: otpCode,
       attempts: 0,
       expiresAt: expiryTime.toISOString(),
@@ -93,18 +124,21 @@ export async function POST(request: NextRequest) {
     } catch (emailError) {
       console.error('Email sending error:', emailError);
       // Delete the OTP if email fails
-      await supabase.from('OTP').delete().eq('email', email);
+      await supabase.from('OTP').delete().eq('email', userEmail);
       return NextResponse.json(
         { error: 'Failed to send OTP email. Please check your email address.' },
         { status: 500 }
       );
     }
 
+    markOTPSentInCurrentProcess(userEmail);
+
     return NextResponse.json(
       {
         success: true,
         message: 'OTP sent to your email',
-        email: email,
+        email: userEmail,
+        requiresOtp: true,
       },
       { status: 200 }
     );

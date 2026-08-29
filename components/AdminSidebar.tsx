@@ -16,11 +16,15 @@ import {
   Database,
   LogOut,
   ShieldAlert,
+  Moon,
+  Sun,
   type LucideIcon,
 } from "lucide-react";
+import { useTeacherTheme } from "@/lib/useTeacherTheme";
 
 export default function AdminSidebar() {
   const router = useRouter();
+  const { theme, toggleTheme } = useTeacherTheme();
 
   const navItems: { label: string; href: string; icon: LucideIcon; color: string }[] = [
     { label: "Dashboard", href: "/admin", icon: LayoutDashboard, color: "text-blue-400" },
@@ -39,7 +43,7 @@ export default function AdminSidebar() {
 
   return (
     <aside className="hidden md:block">
-      <div className="sticky top-6 w-64 rounded-lg border border-slate-700 bg-slate-800 p-4">
+      <div className="sticky top-6 w-64 rounded-lg border border-slate-700 bg-slate-800 p-4 light:border-slate-200 light:bg-white">
         {/* Logo */}
         <div className="mb-6 flex items-center gap-2">
           <div className="h-8 w-8 rounded-lg overflow-hidden flex items-center justify-center bg-white">
@@ -54,20 +58,20 @@ export default function AdminSidebar() {
         </div>
 
         {/* Admin User Badge */}
-        <div className="mb-6 px-3 py-2 rounded-lg bg-slate-700/50 border border-slate-600">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Admin User</p>
-          <p className="text-sm font-medium text-white mt-1">AU</p>
+        <div className="mb-6 px-3 py-2 rounded-lg bg-slate-700/50 border border-slate-600 light:border-slate-200 light:bg-slate-100">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider light:text-slate-500">Admin User</p>
+          <p className="text-sm font-medium text-white mt-1 light:text-slate-900">AU</p>
         </div>
 
         {/* Navigation Section */}
         <div className="mb-6">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-3">NAVIGATION</p>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-3 light:text-slate-500">NAVIGATION</p>
           <nav className="space-y-1">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/50 transition-all group"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 bg-slate-700/50 hover:bg-slate-700 transition-all group light:bg-slate-200 light:text-slate-800 light:hover:bg-slate-300"
               >
                 <item.icon className={`h-4 w-4 ${item.color}`} />
                 {item.label}
@@ -78,13 +82,13 @@ export default function AdminSidebar() {
 
         {/* Settings Section */}
         <div className="mb-6">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-3">SETTINGS</p>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-3 mb-3 light:text-slate-500">SETTINGS</p>
           <nav className="space-y-1">
             {settingsItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 hover:bg-slate-700/50 transition-all"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-200 bg-slate-700/50 hover:bg-slate-700 transition-all light:bg-slate-200 light:text-slate-800 light:hover:bg-slate-300"
               >
                 <item.icon className={`h-4 w-4 ${item.color}`} />
                 {item.label}
@@ -94,18 +98,26 @@ export default function AdminSidebar() {
         </div>
 
         {/* Bottom Actions */}
-        <div className="border-t border-slate-700 pt-4 space-y-2">
+        <div className="border-t border-slate-700 pt-4 space-y-2 light:border-slate-200">
           <button
             onClick={() => router.push('/admin/data')}
-            className="w-full flex items-center justify-center gap-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition-all"
+            className="w-full flex items-center justify-center gap-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition-all light:bg-slate-200 light:text-slate-800 light:hover:bg-slate-300"
           >
             <Database className="h-4 w-4" />
             Manage Data
           </button>
 
           <button
+            onClick={toggleTheme}
+            className="w-full flex items-center justify-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700/50 transition-all light:border-slate-300 light:bg-slate-200 light:text-slate-700 light:hover:bg-slate-300"
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4 text-yellow-400" /> : <Moon className="h-4 w-4 text-indigo-400" />}
+            {theme === "dark" ? "Light Mode" : "Dark Mode"}
+          </button>
+
+          <button
             onClick={() => signOut({ callbackUrl: '/' })}
-            className="w-full flex items-center justify-center gap-2 rounded-lg border border-slate-700 hover:border-slate-600 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700/50 transition-all"
+            className="w-full flex items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-700/50 hover:border-slate-600 hover:bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition-all light:border-slate-300 light:bg-slate-200 light:text-slate-800 light:hover:bg-slate-300"
           >
             <LogOut className="h-4 w-4" />
             Logout
