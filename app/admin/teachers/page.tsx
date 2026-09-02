@@ -181,7 +181,7 @@ export default function TeachersPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="w-full">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>

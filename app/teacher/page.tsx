@@ -78,28 +78,40 @@ export default function TeacherDashboard() {
 
   const downloadTimetablePdf = () => {
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
 
     const teacherName = teacherProfile?.name || session?.user?.name || "Teacher";
-    const generatedAt = new Date().toLocaleString("en-US");
+    const generatedAt = new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
 
-    doc.setFontSize(16);
-    doc.text("Libertad National High School", 14, 14);
-    doc.setFontSize(13);
-    doc.text("Senior High School - Weekly Teaching Timetable", 14, 22);
+    // Header banner
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, pageWidth, 24, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.text("Libertad National High School", 10, 10);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text("Senior High School - Weekly Teaching Timetable", 10, 17);
+    doc.setFontSize(8.5);
+    doc.text(`Generated: ${generatedAt}`, pageWidth - 10, 10, { align: "right" });
+
+    // Info bar
+    doc.setTextColor(30, 41, 59);
+    doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text(`Teacher: ${teacherName}`, 14, 29);
+    doc.text(`Teacher: ${teacherName}`, 10, 31);
     if (teacherProfile?.phone) {
-      doc.text(`Phone: ${teacherProfile.phone}`, 14, 35);
-      doc.text(`Generated: ${generatedAt}`, 14, 41);
-    } else {
-      doc.text(`Generated: ${generatedAt}`, 14, 35);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(`Phone: ${teacherProfile.phone}`, pageWidth - 10, 31, { align: "right" });
     }
 
     const head = [["Time", ...WEEK_DAYS]];
 
     const body = timeSlots.map((slot) => {
       const slotKey = `${slot.startTime}-${slot.endTime}`;
-      const row = [`${slot.startTime} to ${slot.endTime}`];
+      const row = [`${slot.startTime} - ${slot.endTime}`];
 
       WEEK_DAYS.forEach((day) => {
         const item = schedule.find(
@@ -111,33 +123,58 @@ export default function TeacherDashboard() {
           return;
         }
 
-        row.push(`${item.subject}\n${item.section}${item.room ? `\nRoom: ${item.room}` : ""}`);
+        row.push(`${item.subject}\n${item.section}${item.room ? `\nRoom ${item.room}` : ""}`);
       });
 
       return row;
     });
 
     autoTable(doc, {
-      startY: 40,
+      startY: 36,
       head,
       body,
       theme: "grid",
       styles: {
-        fontSize: 8,
-        cellPadding: 2,
+        fontSize: 8.5,
+        cellPadding: 3,
         valign: "middle",
+        halign: "center",
+        lineColor: [203, 213, 225],
+        lineWidth: 0.2,
+        textColor: [30, 41, 59],
       },
       headStyles: {
         fillColor: [30, 41, 59],
         textColor: 255,
         fontStyle: "bold",
+        fontSize: 9,
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
       },
       columnStyles: {
-        0: { cellWidth: 34, fontStyle: "bold" },
+        0: { cellWidth: 30, fontStyle: "bold", fillColor: [226, 232, 240] },
       },
-      didDrawPage: () => {
-        doc.setFontSize(9);
-        doc.text("Libertad National High School - Senior High School", 14, 200);
+      didParseCell: (data) => {
+        if (data.section === "body" && data.column.index > 0) {
+          const text = String(data.cell.raw ?? "").toUpperCase();
+          if (text.includes("RECESS") || text.includes("LUNCH")) {
+            data.cell.styles.fillColor = [254, 226, 226];
+            data.cell.styles.textColor = [153, 27, 27];
+            data.cell.styles.fontStyle = "bold";
+          } else if (text.trim().length === 0) {
+            data.cell.styles.textColor = [148, 163, 184];
+          }
+        }
+      },
+      didDrawPage: (data) => {
+        const pageHeight = doc.internal.pageSize.getHeight();
+        doc.setDrawColor(203, 213, 225);
+        doc.line(10, pageHeight - 12, pageWidth - 10, pageHeight - 12);
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text("Libertad National High School - Senior High School", 10, pageHeight - 7);
+        doc.text(`Page ${data.pageNumber}`, pageWidth - 10, pageHeight - 7, { align: "right" });
       },
     });
 
