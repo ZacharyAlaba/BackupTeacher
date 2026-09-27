@@ -31,11 +31,16 @@ async function parseImportRows(file: File): Promise<string[][]> {
   throw new Error("Only CSV and Excel files are supported");
 }
 
+function generateTemporaryPassword(name: string) {
+  const base = name.trim().replace(/\s+/g, "").toLowerCase();
+  return `${base}2026`;
+}
+
 interface ImportResult {
   success: number;
   failed: number;
   errors: Array<{ row: number; name: string; error: string }>;
-  created: Array<{ name: string; email: string }>;
+  created: Array<{ name: string; email: string; temporaryPassword: string }>;
 }
 
 export async function POST(request: Request) {
@@ -137,13 +142,17 @@ export async function POST(request: Request) {
               ...teacherCreateData,
             },
           });
-          result.created.push({ name: existingUser.name, email });
+          result.created.push({
+            name: existingUser.name,
+            email,
+            temporaryPassword: generateTemporaryPassword(existingUser.name),
+          });
           result.success++;
           continue;
         }
 
-        const tempPassword = Math.random().toString(36).slice(-8);
-        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        const temporaryPassword = generateTemporaryPassword(name);
+        const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
 
         const user = await prisma.user.create({
           data: {
@@ -161,7 +170,7 @@ export async function POST(request: Request) {
           },
         });
 
-        result.created.push({ name, email });
+        result.created.push({ name, email, temporaryPassword });
         result.success++;
       } catch (error) {
         result.failed++;

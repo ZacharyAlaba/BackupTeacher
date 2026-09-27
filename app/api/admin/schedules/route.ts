@@ -44,9 +44,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { teacherId, subjectId, sectionId, timeSlotId, room, overrideRules, overrideReason } = await request.json();
+    const body = await request.json();
+    const { teacherId, subjectId, sectionId, room, overrideRules, overrideReason } = body;
 
-    if (!teacherId || !subjectId || !sectionId || !timeSlotId) {
+    // Accept either a single timeSlotId or a group of timeSlotIds (e.g. a subject
+    // that meets Monday-Thursday). The whole group is created atomically: if any
+    // slot in the group conflicts, NONE of the slots are created.
+    const rawTimeSlotIds: string[] = Array.isArray(body.timeSlotIds)
+      ? body.timeSlotIds
+      : body.timeSlotId
+      ? [body.timeSlotId]
+      : [];
+    const timeSlotIds = Array.from(new Set(rawTimeSlotIds.filter(Boolean)));
+
+    if (!teacherId || !subjectId || !sectionId || timeSlotIds.length === 0) {
       return NextResponse.json({ error: "All fields required" }, { status: 400 });
     }
 
@@ -54,37 +65,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Override reason required" }, { status: 400 });
     }
 
-    // Check for conflicts
-    const existingTeacherConflict = await prisma.scheduleBlock.findFirst({
-      where: {
-        teacherId,
-        timeSlotId,
-      },
-    });
-
-    const existingSectionConflict = await prisma.scheduleBlock.findFirst({
-      where: {
-        sectionId,
-        timeSlotId,
-      },
-    });
-
-    if (existingTeacherConflict) {
-      return NextResponse.json({ error: "Teacher already has a class at this time" }, { status: 400 });
-    }
-
-    if (existingSectionConflict) {
-      return NextResponse.json({ error: "Section already has a class at this time" }, { status: 400 });
-    }
-
-    // Rule checks (only bypassable with override)
     const subject = await prisma.subject.findUnique({ where: { id: subjectId } });
-    const timeSlot = await prisma.timeSlot.findUnique({ where: { id: timeSlotId } });
+    const requestedTimeSlots = await prisma.timeSlot.findMany({ where: { id: { in: timeSlotIds } } });
 
-    if (!subject || !timeSlot) {
+    if (!subject || requestedTimeSlots.length !== timeSlotIds.length) {
       return NextResponse.json({ error: "Invalid subject or time slot" }, { status: 400 });
     }
 
+    // Check for conflicts across every slot in the group before creating anything.
+    const existingTeacherConflict = await prisma.scheduleBlock.findFirst({
+      where: { teacherId, timeSlotId: { in: timeSlotIds } },
+      include: { timeSlot: true },
+    });
+
+    if (existingTeacherConflict) {
+      return NextResponse.json(
+        { error: `Teacher already has a class at this time (${existingTeacherConflict.timeSlot.day})` },
+        { status: 400 }
+      );
+    }
+
+    const existingSectionConflict = await prisma.scheduleBlock.findFirst({
+      where: { sectionId, timeSlotId: { in: timeSlotIds } },
+      include: { timeSlot: true },
+    });
+
+    if (existingSectionConflict) {
+      return NextResponse.json(
+        { error: `Section already has a class at this time (${existingSectionConflict.timeSlot.day})` },
+        { status: 400 }
+      );
+    }
+
+    // Rule checks (only bypassable with override)
     if (!overrideRules) {
       const sectionSubjectSchedules = await prisma.scheduleBlock.findMany({
         where: {
@@ -96,14 +109,13 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      const placementValidation = validateSectionSubjectPlacement(
-        subject.name,
-        sectionSubjectSchedules.map((s: any) => ({ day: s.timeSlot.day })),
-        timeSlot.day
-      );
-
-      if (!placementValidation.valid) {
-        return NextResponse.json({ error: placementValidation.error }, { status: 400 });
+      const seenDays = sectionSubjectSchedules.map((s: any) => ({ day: s.timeSlot.day }));
+      for (const timeSlot of requestedTimeSlots) {
+        const placementValidation = validateSectionSubjectPlacement(subject.name, seenDays, timeSlot.day);
+        if (!placementValidation.valid) {
+          return NextResponse.json({ error: placementValidation.error }, { status: 400 });
+        }
+        seenDays.push({ day: timeSlot.day });
       }
 
       const teacherSchedules = await prisma.scheduleBlock.findMany({
@@ -112,7 +124,7 @@ export async function POST(request: NextRequest) {
       });
 
       const daysUsed = new Set(teacherSchedules.map((s: any) => s.timeSlot.day));
-      daysUsed.add(timeSlot.day);
+      requestedTimeSlots.forEach((timeSlot) => daysUsed.add(timeSlot.day));
 
       const hasDayOff = WEEKDAYS.some((day) => !daysUsed.has(day));
       if (!hasDayOff) {
@@ -132,23 +144,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Teacher is not qualified for this subject" }, { status: 400 });
     }
 
-    const schedule = await prisma.scheduleBlock.create({
-      data: {
-        teacherId,
-        subjectId,
-        sectionId,
-        timeSlotId,
-        room: room || undefined,
-      },
-      include: {
-        teacher: { include: { user: true } },
-        subject: true,
-        section: true,
-        timeSlot: true,
-      },
-    });
+    // Create every slot in the group in a single transaction: all-or-nothing.
+    const createdSchedules = await prisma.$transaction(
+      timeSlotIds.map((timeSlotId) =>
+        prisma.scheduleBlock.create({
+          data: {
+            teacherId,
+            subjectId,
+            sectionId,
+            timeSlotId,
+            room: room || undefined,
+          },
+          include: {
+            teacher: { include: { user: true } },
+            subject: true,
+            section: true,
+            timeSlot: true,
+          },
+        })
+      )
+    );
 
-    return NextResponse.json(schedule, { status: 201 });
+    return NextResponse.json(
+      createdSchedules.length === 1 ? createdSchedules[0] : createdSchedules,
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Schedule creation error:", error);
     return NextResponse.json({ error: "Failed to create schedule" }, { status: 500 });

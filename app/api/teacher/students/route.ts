@@ -5,6 +5,11 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { generateStudentId } from "@/lib/studentIdGenerator";
 
+function generateTemporaryPassword(name: string) {
+  const base = name.trim().replace(/\s+/g, "").toLowerCase();
+  return `${base}2026`;
+}
+
 // Lets a teacher add a student straight into their class list; the record is the
 // same Student/User row the admin Students page reads, so both stay in sync.
 export async function POST(request: NextRequest) {
@@ -75,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     const studentId = await generateStudentId(section.gradeLevel);
-    const tempPassword = Math.random().toString(36).slice(-8);
+    const tempPassword = generateTemporaryPassword(name);
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
     const user = await prisma.user.create({

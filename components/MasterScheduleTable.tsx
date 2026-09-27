@@ -989,26 +989,23 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
         matchingSlotIds.unshift(selectedSlot.timeSlotId);
       }
 
-      const responses = await Promise.all(
-        matchingSlotIds.map((timeSlotId) =>
-          fetch("/api/admin/schedules", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              teacherId: selectedTeacher,
-              subjectId: selectedSubject,
-              sectionId: selectedSlot.sectionId,
-              timeSlotId,
-              room: null,
-              overrideRules: true,
-              overrideReason: "Admin schedule builder assignment",
-            }),
-          })
-        )
-      );
+      // Assign all matching day slots in a single atomic request: if any day in the
+      // group conflicts, none of the slots are created (no more partial assignments).
+      const response = await fetch("/api/admin/schedules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teacherId: selectedTeacher,
+          subjectId: selectedSubject,
+          sectionId: selectedSlot.sectionId,
+          timeSlotIds: matchingSlotIds,
+          room: null,
+          overrideRules: true,
+          overrideReason: "Admin schedule builder assignment",
+        }),
+      });
 
-      const failedResponses = responses.filter((response) => !response.ok);
-      if (failedResponses.length === 0) {
+      if (response.ok) {
         setSuccess(`Teacher assigned to ${matchingSlotIds.length} matching subject slot(s)!`);
         setShowModal(false);
         setSelectedSlot(null);
@@ -1018,7 +1015,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
         // Reload data
         loadData();
       } else {
-        const data = await failedResponses[0].json();
+        const data = await response.json();
         setError(data.error || "Failed to assign class");
       }
     } catch (error) {

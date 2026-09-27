@@ -20,16 +20,23 @@ export default async function middleware(req: NextRequest) {
     return response;
   };
 
-  if (path.startsWith("/admin") && token?.role !== "ADMIN") {
-    return redirectWithCookies("/teacher");
+  const role = token?.role;
+  // Route unauthenticated users to login instead of bouncing between /admin and /teacher.
+  const homeForRole = (r?: string) => (r === "ADMIN" ? "/admin" : r === "TEACHER" ? "/teacher" : r === "STUDENT" ? "/student" : "/login");
+
+  if (path.startsWith("/admin")) {
+    if (!role) return redirectWithCookies("/login/admin");
+    if (role !== "ADMIN") return redirectWithCookies(homeForRole(role));
   }
 
-  if (path.startsWith("/teacher") && token?.role !== "TEACHER") {
-    return redirectWithCookies("/admin");
+  if (path.startsWith("/teacher")) {
+    if (!role) return redirectWithCookies("/login/teacher");
+    if (role !== "TEACHER") return redirectWithCookies(homeForRole(role));
   }
 
-  if (path.startsWith("/student") && token?.role !== "STUDENT") {
-    return redirectWithCookies("/login");
+  if (path.startsWith("/student")) {
+    if (!role) return redirectWithCookies("/login");
+    if (role !== "STUDENT") return redirectWithCookies(homeForRole(role));
   }
 
   return supabaseResponse;

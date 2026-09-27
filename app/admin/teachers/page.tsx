@@ -148,6 +148,14 @@ export default function TeachersPage() {
         setBulkImportResult(result);
         setBulkImportFile(null);
         setShowBulkImport(result.failed > 0);
+
+        if (result.created?.length > 0) {
+          const passwordSummary = result.created
+            .map((teacher: any) => `${teacher.name}: ${teacher.temporaryPassword}`)
+            .join("\n");
+          alert(`Temporary passwords for imported teachers:\n${passwordSummary}`);
+        }
+
         await fetchTeachers();
       } else {
         alert(`Error: ${result.error || "Failed to import teachers."}`);
@@ -435,9 +443,12 @@ Jane Smith,jane@school.edu
                     <p className="text-white font-semibold mb-3">Successfully Created Teachers:</p>
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {bulkImportResult.created.map((teacher: any, idx: number) => (
-                        <div key={idx} className="text-sm text-slate-300 p-2 bg-slate-800 rounded flex justify-between items-center">
-                          <span>{teacher.name}</span>
-                          <span className="font-mono text-green-400 font-medium">{teacher.email}</span>
+                        <div key={idx} className="text-sm text-slate-300 p-2 bg-slate-800 rounded flex flex-col gap-1">
+                          <div className="flex justify-between items-center gap-3">
+                            <span>{teacher.name}</span>
+                            <span className="font-mono text-green-400 font-medium">{teacher.email}</span>
+                          </div>
+                          <div className="text-xs text-amber-300">Temporary password: <span className="font-mono text-amber-200">{teacher.temporaryPassword}</span></div>
                         </div>
                       ))}
                     </div>

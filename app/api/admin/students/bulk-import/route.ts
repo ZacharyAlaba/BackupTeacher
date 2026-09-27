@@ -19,6 +19,11 @@ interface BulkImportStudent {
   guardianPhone?: string;
 }
 
+function generateTemporaryPassword(name: string) {
+  const base = name.trim().replace(/\s+/g, "").toLowerCase();
+  return `${base}2026`;
+}
+
 interface ImportResult {
   success: number;
   failed: number;
@@ -31,6 +36,7 @@ interface ImportResult {
     studentId: string;
     name: string;
     email: string;
+    temporaryPassword: string;
   }>;
 }
 
@@ -171,9 +177,8 @@ export async function POST(request: Request) {
         // Generate student ID
         const studentId = await generateStudentId(gradeLevel);
 
-        // Generate random password
-        const password = Math.random().toString(36).slice(-8);
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const temporaryPassword = generateTemporaryPassword(name);
+        const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
 
         // Create user
         const user = await prisma.user.create({
@@ -205,6 +210,7 @@ export async function POST(request: Request) {
           studentId: student.studentId,
           name: user.name,
           email: user.email,
+          temporaryPassword,
         });
         result.success++;
       } catch (error) {

@@ -10,6 +10,7 @@ type AttendanceRecord = {
   id: string;
   gradingPeriod: string;
   academicYear: string;
+  date?: string | null;
   status: string;
   remarks?: string | null;
   subject: { id: string; name: string };
@@ -262,7 +263,7 @@ export default function StudentAttendancePage() {
 
   const attendanceDates = useMemo(() => {
     if (!data) return [] as string[];
-    return Array.from(new Set(data.attendance.map((record) => record.date).filter(Boolean))).sort();
+    return Array.from(new Set(data.attendance.map((record) => record.date).filter((date): date is string => Boolean(date)))).sort();
   }, [data]);
 
   const visibleAttendanceDates = useMemo(

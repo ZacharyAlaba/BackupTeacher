@@ -242,59 +242,78 @@ export default function TeacherAttendancePage() {
     };
   }, [status]);
 
+  const loadAttendance = useCallback(async () => {
+    try {
+      const response = await fetch("/api/teacher/attendance", { cache: "no-store" });
+      if (!response.ok) {
+        setMessage("Failed to load attendance data. Try refreshing the page.");
+        return;
+      }
+
+      const data = await response.json();
+
+      const nextSections = data.sections || [];
+      const nextAssignments = data.sectionSubjectAssignments || [];
+      const nextSubjects = data.subjects || [];
+
+      setAcademicYear(data.academicYear || "");
+      setSections(nextSections);
+      setSubjects(nextSubjects);
+      setSectionSubjectAssignments(nextAssignments);
+      setAttendanceRecords(data.attendanceRecords || []);
+
+      setSelectedSectionId((currentSectionId) => {
+        if (currentSectionId && nextSections.some((section: SectionItem) => section.id === currentSectionId)) {
+          return currentSectionId;
+        }
+
+        const firstSection = nextSections[0];
+        if (!firstSection) {
+          return "";
+        }
+
+        const firstAssignment = nextAssignments.find(
+          (assignment: SectionSubjectAssignment) => assignment.sectionId === firstSection.id
+        );
+        setSelectedSubjectId(firstAssignment?.subjectId || nextSubjects[0]?.id || "");
+        return firstSection.id;
+      });
+    } catch (error) {
+      console.error("Failed to load attendance:", error);
+      setMessage("Failed to load attendance data. Try refreshing the page.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (status !== "authenticated") {
       return;
     }
 
-    let cancelled = false;
+    loadAttendance();
+  }, [status, loadAttendance]);
 
-    async function loadAttendance() {
-      try {
-        const response = await fetch("/api/teacher/attendance", { cache: "no-store" });
-        if (!response.ok) {
-          return;
-        }
+  // Refetch whenever the tab regains focus, since schedule/roster changes made
+  // elsewhere (e.g. admin schedule builder) won't appear in an already-open tab otherwise.
+  useEffect(() => {
+    if (status !== "authenticated") {
+      return;
+    }
 
-        const data = await response.json();
-        if (cancelled) {
-          return;
-        }
-
-        const nextSections = data.sections || [];
-        const nextAssignments = data.sectionSubjectAssignments || [];
-        const nextSubjects = data.subjects || [];
-
-        setAcademicYear(data.academicYear || "");
-        setSections(nextSections);
-        setSubjects(nextSubjects);
-        setSectionSubjectAssignments(nextAssignments);
-        setAttendanceRecords(data.attendanceRecords || []);
-
-        const firstSection = nextSections[0];
-        if (firstSection) {
-          const firstAssignment = nextAssignments.find(
-            (assignment: SectionSubjectAssignment) =>
-              assignment.sectionId === firstSection.id
-          );
-          const firstSubjectId = firstAssignment?.subjectId || nextSubjects[0]?.id || "";
-          setSelectedSectionId(firstSection.id);
-          setSelectedSubjectId(firstSubjectId);
-        }
-      } catch (error) {
-        console.error("Failed to load attendance:", error);
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+    function handleVisibilityOrFocus() {
+      if (document.visibilityState === "visible") {
+        loadAttendance();
       }
     }
 
-    loadAttendance();
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
     return () => {
-      cancelled = true;
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
     };
-  }, [status]);
+  }, [status, loadAttendance]);
 
   const selectedSection = sections.find((section) => section.id === selectedSectionId) || null;
 
@@ -1143,7 +1162,7 @@ Jane Smith,jane.smith@school.edu
                       ←
                     </button>
                     <div className="text-xs uppercase tracking-[0.16em] text-slate-400 light:text-slate-500">
-                      {selectedSection?.name || "DEWEY"} · {gradingPeriod}
+                      {selectedSection?.name || "No section"} · {gradingPeriod}
                     </div>
                     <button
                       type="button"

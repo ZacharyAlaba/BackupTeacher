@@ -7,6 +7,11 @@ import { generateStudentId } from "@/lib/studentIdGenerator";
 import { parse } from "csv-parse/sync";
 import * as XLSX from "xlsx";
 
+function generateTemporaryPassword(name: string) {
+  const base = name.trim().replace(/\s+/g, "").toLowerCase();
+  return `${base}2026`;
+}
+
 async function parseImportRows(file: File): Promise<string[][]> {
   const extension = file.name.split(".").pop()?.toLowerCase();
 
@@ -162,7 +167,7 @@ export async function POST(request: Request) {
               throw new Error(`Student ID ${newStudentId} already exists`);
             }
 
-            const tempPassword = Math.random().toString(36).slice(-8);
+            const tempPassword = generateTemporaryPassword(nameValue);
             const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
             const user = await prisma.user.create({

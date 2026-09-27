@@ -204,6 +204,14 @@ export default function StudentsPage() {
       if (response.ok) {
         setBulkImportResult(result);
         setBulkImportFile(null);
+
+        if (result.created?.length > 0) {
+          const passwordSummary = result.created
+            .map((student: any) => `${student.name}: ${student.temporaryPassword}`)
+            .join("\n");
+          alert(`Temporary passwords for imported students:\n${passwordSummary}`);
+        }
+
         setTimeout(() => {
           fetchStudents();
         }, 1000);
@@ -527,9 +535,13 @@ export default function StudentsPage() {
                     <p className="text-white font-semibold mb-3">Successfully Created Students:</p>
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {bulkImportResult.created.map((student: any, idx: number) => (
-                        <div key={idx} className="text-sm text-slate-300 p-2 bg-slate-800 rounded flex justify-between items-center">
-                          <span>{student.name}</span>
-                          <span className="font-mono text-green-400 font-medium">{student.studentId}</span>
+                        <div key={idx} className="text-sm text-slate-300 p-2 bg-slate-800 rounded flex flex-col gap-1">
+                          <div className="flex justify-between items-center gap-3">
+                            <span>{student.name}</span>
+                            <span className="font-mono text-green-400 font-medium">{student.studentId}</span>
+                          </div>
+                          <div className="text-xs text-slate-400">{student.email}</div>
+                          <div className="text-xs text-amber-300">Temporary password: <span className="font-mono text-amber-200">{student.temporaryPassword}</span></div>
                         </div>
                       ))}
                     </div>
