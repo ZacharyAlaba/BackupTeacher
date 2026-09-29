@@ -32,6 +32,7 @@ model User {
 
 model Teacher {
   id              String           @id @default(cuid())
+  teacherId       String           @unique
   userId          String           @unique
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   dateOfBirth     DateTime?
@@ -71,6 +72,7 @@ model Student {
 model Subject {
   id             String           @id @default(cuid())
   name           String
+  scheduleKey    String?
   gradeLevel     String           // G11 or G12
   track          String?          // ABM, HUMSS, STEM, etc.
   scheduleBlocks ScheduleBlock[]
@@ -95,6 +97,7 @@ model TimeSlot {
 model Section {
   id             String           @id @default(cuid())
   name           String           // e.g., ABM-ARISTOTLE, HUMSS-AURELIUS
+  scheduleKey    String?
   gradeLevel     String           // G11 or G12
   track          String           // ABM, HUMSS, STEM, etc.
   scheduleBlocks ScheduleBlock[]

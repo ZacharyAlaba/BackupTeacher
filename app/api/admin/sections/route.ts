@@ -12,6 +12,10 @@ function normalizeSectionKey(section: { name: string; gradeLevel: string; track:
   return `${grade}:${track}:${name}`;
 }
 
+function makeScheduleKey(name: string) {
+  return name.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
 async function loadSectionsFromCsv() {
   const csvPath = path.resolve(process.cwd(), "..", "data", "sections.csv");
   const txt = await fs.readFile(csvPath, "utf8");
@@ -66,21 +70,17 @@ export async function GET(request: NextRequest) {
       sections = [];
     }
 
-    try {
-      csvSections = await loadSectionsFromCsv();
-      const existingKeys = new Set(sections.map(normalizeSectionKey));
-      sections = sections.concat(
-        csvSections.filter((csv) => !existingKeys.has(normalizeSectionKey(csv)))
-      );
-    } catch (csvErr: unknown) {
-      console.error(
-        "Failed to load sections from CSV:",
-        csvErr instanceof Error ? csvErr.message : JSON.stringify(csvErr)
-      );
-    }
-
-    // If no sections in DB or merged sections are still empty, use CSV fallback
+    // The database is the source of truth once it contains sections. Merging the
+    // CSV here would reintroduce stale names after an admin renames a section.
     if (!sections || sections.length === 0) {
+      try {
+        csvSections = await loadSectionsFromCsv();
+      } catch (csvErr: unknown) {
+        console.error(
+          "Failed to load sections from CSV:",
+          csvErr instanceof Error ? csvErr.message : JSON.stringify(csvErr)
+        );
+      }
       return NextResponse.json(csvSections);
     }
 
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
 
     const section = await prisma.section.create({
-      data: { name, gradeLevel, track },
+      data: { name, scheduleKey: makeScheduleKey(name), gradeLevel, track },
     });
 
     return NextResponse.json(section, { status: 201 });

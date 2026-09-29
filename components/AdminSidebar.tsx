@@ -42,7 +42,7 @@ export default function AdminSidebar() {
   ];
 
   return (
-    <aside className="hidden md:block">
+    <aside className="sticky top-6 hidden self-start md:block">
       <div className="sticky top-6 w-64 rounded-lg border border-slate-700 bg-slate-800 p-4 light:border-slate-200 light:bg-white">
         {/* Logo */}
         <div className="mb-6 flex items-center gap-2">

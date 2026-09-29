@@ -6,6 +6,7 @@ import { signOut, useSession } from "next-auth/react";
 
 interface Teacher {
   id: string;
+  teacherId: string;
   user: { name: string; email: string };
   createdAt: string;
 }
@@ -17,7 +18,8 @@ export default function TeachersPage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ 
-    name: "", 
+    firstName: "",
+    lastName: "",
     email: "",
     password: "",
     dateOfBirth: "",
@@ -74,7 +76,11 @@ export default function TeachersPage() {
 
     try {
       const method = editingId ? "PUT" : "POST";
-      const body = editingId ? { ...formData, id: editingId } : formData;
+      const body = {
+        ...formData,
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        ...(editingId ? { id: editingId } : {}),
+      };
       const response = await fetch("/api/admin/teachers", {
         method,
         headers: { "Content-Type": "application/json" },
@@ -83,7 +89,7 @@ export default function TeachersPage() {
 
       if (response.ok) {
         const result = await response.json();
-        setFormData({ name: "", email: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
+        setFormData({ firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
         setEditingId(null);
         setShowForm(false);
         setSuccessMessage(
@@ -169,8 +175,10 @@ export default function TeachersPage() {
   }
 
   function handleEdit(teacher: Teacher) {
+    const nameParts = teacher.user.name.trim().split(/\s+/);
     setFormData({
-      name: teacher.user.name,
+      firstName: nameParts.shift() || "",
+      lastName: nameParts.join(" "),
       email: teacher.user.email,
       password: "",
       dateOfBirth: "",
@@ -244,12 +252,22 @@ export default function TeachersPage() {
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm text-slate-300 mb-2">Name</label>
+                <label className="block text-sm text-slate-300 mb-2">First Name</label>
                 <input
                   type="text"
                   required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">Last Name</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                   className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
@@ -320,7 +338,7 @@ export default function TeachersPage() {
                   onClick={() => {
                     setShowForm(false);
                     setEditingId(null);
-                    setFormData({ name: "", email: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
+                    setFormData({ firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
                     setSuccessMessage(null);
                   }}
                   className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-semibold"
@@ -351,7 +369,7 @@ export default function TeachersPage() {
             <button
               type="button"
               onClick={() => {
-                setFormData({ name: "", email: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
+                setFormData({ firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
                 setEditingId(null);
                 setSuccessMessage(null);
                 setShowForm(true);
@@ -503,6 +521,7 @@ Jane Smith,jane@school.edu
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-700 bg-slate-900">
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Teacher ID</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Name</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Email</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Created</th>
@@ -512,6 +531,7 @@ Jane Smith,jane@school.edu
               <tbody>
                 {filteredTeachers.map((teacher) => (
                   <tr key={teacher.id} className="border-b border-slate-700 hover:bg-slate-700/50">
+                    <td className="px-6 py-3 font-mono text-sm text-blue-300">{teacher.teacherId}</td>
                     <td className="px-6 py-3 text-white">{teacher.user.name}</td>
                     <td className="px-6 py-3 text-slate-400">{teacher.user.email}</td>
                     <td className="px-6 py-3 text-slate-400">

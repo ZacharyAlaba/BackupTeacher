@@ -8,6 +8,7 @@ const MAX_ATTEMPTS = 5;
 const OTP_PROCESS_START_KEY = Symbol.for('teacher-scheduling.otp-process-start');
 const OTP_PROCESS_SENT_KEY = Symbol.for('teacher-scheduling.otp-process-sent');
 const OTP_PROCESS_VERIFIED_KEY = Symbol.for('teacher-scheduling.otp-process-verified');
+let cachedGmailTransporter: nodemailer.Transporter | null = null;
 
 type OTPGlobalState = typeof globalThis & {
   [OTP_PROCESS_START_KEY]?: number;
@@ -82,13 +83,15 @@ export function createGmailTransporter() {
     throw new Error('Gmail credentials not configured. Set GMAIL_APP_PASSWORD and GMAIL_USER in environment variables.');
   }
 
-  return nodemailer.createTransport({
+  cachedGmailTransporter ??= nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_APP_PASSWORD,
     },
   });
+
+  return cachedGmailTransporter;
 }
 
 // Send OTP via email

@@ -358,7 +358,7 @@ export default function ScheduleBuilderPage() {
           <p className="text-slate-400">Assign teachers to classes and manage schedules</p>
         </div>
 
-        <div className="mb-8 rounded-xl border border-slate-700 bg-slate-800 p-6">
+        <div className="mb-8 rounded-xl border border-slate-700 bg-slate-800 p-4 md:p-5">
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-white">Scheduling Grid</h2>

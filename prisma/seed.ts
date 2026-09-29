@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { generateTeacherId } from "@/lib/teacherIdGenerator";
 import bcrypt from "bcryptjs";
 import fs from "fs/promises";
 import path from "path";
@@ -37,6 +38,7 @@ async function main() {
     where: { userId: teacherUser.id },
     update: {},
     create: {
+      teacherId: await generateTeacherId(),
       userId: teacherUser.id,
     },
   });

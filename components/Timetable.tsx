@@ -116,15 +116,15 @@ export default function Timetable({ schedule, timeSlots }: TimetableProps) {
   };
 
   return (
-    <div className="overflow-x-auto">
-      <div className="inline-block min-w-full align-middle">
+    <div className="w-full overflow-hidden">
+      <div className="w-full align-middle">
         <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-lg shadow-slate-950/40 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
-          <table className="min-w-full border-collapse text-sm">
+          <table className="w-full table-fixed border-collapse text-sm">
             <thead>
               <tr>
                 <th
                   scope="col"
-                  className="sticky left-0 z-10 border border-slate-700 bg-slate-900 px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.12em] text-slate-100 light:border-slate-200 light:bg-slate-100 light:text-slate-700"
+                  className="sticky left-0 z-10 w-20 border border-slate-700 bg-slate-900 px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-100 light:border-slate-200 light:bg-slate-100 light:text-slate-700"
                 >
                   Time
                 </th>
@@ -132,7 +132,7 @@ export default function Timetable({ schedule, timeSlots }: TimetableProps) {
                   <th
                     key={day}
                     scope="col"
-                    className="min-w-[180px] border border-slate-700 bg-slate-900 px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.12em] text-slate-100 light:border-slate-200 light:bg-slate-100 light:text-slate-700"
+                    className="border border-slate-700 bg-slate-900 px-1 py-2 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-100 light:border-slate-200 light:bg-slate-100 light:text-slate-700"
                   >
                     {day}
                   </th>
@@ -147,7 +147,7 @@ export default function Timetable({ schedule, timeSlots }: TimetableProps) {
                     key={timeSlotKey}
                     className={index % 2 === 0 ? "bg-slate-950 light:bg-white" : "bg-slate-900 light:bg-slate-50"}
                   >
-                      <td className="sticky left-0 z-10 w-[130px] whitespace-nowrap border border-slate-700 bg-slate-900 px-3 py-3 text-xs font-semibold text-slate-200 light:border-slate-200 light:bg-slate-100 light:text-slate-700">
+                      <td className="sticky left-0 z-10 w-20 whitespace-nowrap border border-slate-700 bg-slate-900 px-2 py-2 text-[10px] font-semibold text-slate-200 light:border-slate-200 light:bg-slate-100 light:text-slate-700">
                       <div className="flex flex-col">
                         <span>{formatDisplayTime(slot.startTime)}</span>
                         <span className="text-[10px] font-medium text-slate-500 light:text-slate-400">to</span>
@@ -157,10 +157,30 @@ export default function Timetable({ schedule, timeSlots }: TimetableProps) {
 
                       {DAYS.map((day) => {
                       const item = getScheduleItem(day, timeSlotKey);
+                      const breakItem = DAYS
+                        .map((breakDay) => getScheduleItem(breakDay, timeSlotKey))
+                        .find((scheduleItem) => scheduleItem?.subject?.toUpperCase().includes("RECESS") || scheduleItem?.subject?.toUpperCase().includes("LUNCH"));
+
+                      if (breakItem) {
+                        if (day !== DAYS[0]) return null;
+
+                        return (
+                          <td
+                            key={`break-${timeSlotKey}`}
+                            colSpan={DAYS.length}
+                            className="h-16 border border-slate-700 px-1 py-1 align-top light:border-slate-200"
+                          >
+                            <div className="flex h-full w-full items-center justify-center rounded-xl bg-rose-300 p-2 text-xs font-semibold text-black">
+                              {breakItem.subject}
+                            </div>
+                          </td>
+                        );
+                      }
+
                       return (
                         <td
                           key={`${day}-${timeSlotKey}`}
-                          className="min-h-[88px] min-w-[180px] border border-slate-700 px-2 py-2 align-top light:border-slate-200"
+                          className="h-16 border border-slate-700 px-1 py-1 align-top light:border-slate-200"
                         >
                               {item ? (
                                 // determine if this item is a break or has a prefills style
@@ -178,23 +198,23 @@ export default function Timetable({ schedule, timeSlots }: TimetableProps) {
                                   // non-clickable for breaks
                                   if (isBreak) {
                                     return (
-                                      <div className={`w-full h-full rounded-xl ${tileBg} ${tileText} p-3 flex flex-col justify-center items-center text-sm font-semibold leading-tight cursor-default`}>
+                                      <div className={`w-full h-full rounded-xl ${tileBg} ${tileText} p-2 flex flex-col justify-center items-center text-xs font-semibold leading-tight cursor-default`}>
                                         <div>{item.subject}</div>
                                       </div>
                                     );
                                   }
 
                                   return (
-                                    <div className={`h-full rounded-xl border border-slate-700 light:border-slate-200 ${tileBg} p-3 shadow-sm shadow-slate-950/20 light:shadow-slate-200/50 flex flex-col justify-between`}> 
+                                    <div className={`h-full rounded-xl border border-slate-700 light:border-slate-200 ${tileBg} p-2 shadow-sm shadow-slate-950/20 light:shadow-slate-200/50 flex flex-col justify-between`}> 
                                       <div>
-                                        <div className={`mb-1 text-sm font-semibold leading-tight ${tileText}`}>
+                                        <div className={`mb-1 text-xs font-semibold leading-tight ${tileText}`}>
                                           {displaySubject}
                                         </div>
-                                        <div className="text-xs font-medium text-slate-300 light:text-slate-600">
+                                        <div className="text-[10px] font-medium text-slate-300 light:text-slate-600">
                                           {item.section}
                                         </div>
                                         {item.room && (
-                                          <div className="mt-2 inline-block rounded bg-slate-900 px-2 py-1 text-[11px] text-slate-300 light:bg-slate-200 light:text-slate-700">
+                                          <div className="mt-1 inline-block rounded bg-slate-900 px-1 py-0.5 text-[10px] text-slate-300 light:bg-slate-200 light:text-slate-700">
                                             Room {item.room}
                                           </div>
                                         )}
@@ -203,7 +223,7 @@ export default function Timetable({ schedule, timeSlots }: TimetableProps) {
                                   );
                                 })()
                               ) : (
-                                <div className="flex min-h-[72px] items-center justify-center text-xs text-slate-500 light:text-slate-400">
+                                <div className="flex h-full items-center justify-center text-[10px] text-slate-500 light:text-slate-400">
                                   Free
                                 </div>
                               )}

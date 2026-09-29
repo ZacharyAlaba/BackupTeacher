@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     // Sort locally so verification does not depend on database column quoting.
     const { data: otpRecords, error: fetchError } = await supabase
       .from('OTP')
-      .select('*')
+      .select('id,email,code,attempts,expiresAt,createdAt')
       .ilike('email', email);
 
     if (fetchError) {
@@ -106,11 +106,10 @@ export async function POST(request: NextRequest) {
     }
 
     // A valid OTP consumes all outstanding codes for this login email.
-    await supabase.from('OTP').delete().eq('email', email);
-    const { error: verificationUpdateError } = await supabase
-      .from('User')
-      .update({ otpVerifiedAt: new Date().toISOString() })
-      .eq('email', email);
+    const [{ error: verificationUpdateError }] = await Promise.all([
+      supabase.from('User').update({ otpVerifiedAt: new Date().toISOString() }).eq('email', email),
+      supabase.from('OTP').delete().eq('email', email),
+    ]);
 
     if (verificationUpdateError) {
       console.error('User OTP verification update error:', verificationUpdateError);

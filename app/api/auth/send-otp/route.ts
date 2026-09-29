@@ -47,14 +47,14 @@ export async function POST(request: NextRequest) {
     // Verify user exists with correct password
     let { data: user, error: userError } = await supabase
       .from('User')
-      .select('*')
+      .select('id,email,password,role,otpVerifiedAt')
       .eq('email', email)
       .maybeSingle();
 
     if (!user && !userError) {
       const { data: student } = await supabase
         .from('Student')
-        .select('User(*)')
+        .select('User(id,email,password,role,otpVerifiedAt)')
         .eq('studentId', identifier)
         .maybeSingle();
       user = Array.isArray((student as any)?.User)
@@ -87,14 +87,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (hasOTPVerifiedInCurrentProcess(user.email) || !isOTPRequiredForCurrentProcess(user.otpVerifiedAt)) {
-      return NextResponse.json({ success: true, requiresOtp: false, email: user.email });
+      return NextResponse.json({ success: true, requiresOtp: false, email: user.email, role: user.role });
     }
 
     const userEmail = String(user.email).toLowerCase();
 
     // A verified user skips OTP until the development server is restarted.
     if (hasOTPSentInCurrentProcess(userEmail)) {
-      return NextResponse.json({ success: true, requiresOtp: true, email: userEmail });
+      return NextResponse.json({ success: true, requiresOtp: true, email: userEmail, role: user.role });
     }
 
     // Generate OTP
@@ -103,8 +103,6 @@ export async function POST(request: NextRequest) {
 
     // Remove expired records, but keep recent codes because email delivery can
     // arrive out of order when a user requests OTP more than once.
-    await supabase.from('OTP').delete().lt('expiresAt', new Date().toISOString());
-
     const { error: insertError } = await supabase.from('OTP').insert({
       id: randomUUID(),
       email: userEmail,
@@ -117,6 +115,9 @@ export async function POST(request: NextRequest) {
       console.error('Insert OTP error:', insertError);
       throw insertError;
     }
+
+    // Cleanup is independent of this login and should not delay OTP delivery.
+    void supabase.from('OTP').delete().lt('expiresAt', new Date().toISOString());
 
     // Send OTP via email
     try {
@@ -138,6 +139,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: 'OTP sent to your email',
         email: userEmail,
+        role: user.role,
         requiresOtp: true,
       },
       { status: 200 }

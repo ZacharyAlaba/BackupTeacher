@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeSubjectName } from "@/lib/normalizeSubjectName";
+import { generateTeacherId } from "@/lib/teacherIdGenerator";
 import { validateSectionSubjectPlacement, WEEKDAYS } from "@/lib/schedulingRules";
 
 export async function POST(request: NextRequest) {
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
                 name,
                 password: "defaultPassword123",
                 role: "TEACHER",
-                teacher: { create: {} },
+                teacher: { create: { teacherId: await generateTeacherId() } },
               },
             });
             imported.teachers++;

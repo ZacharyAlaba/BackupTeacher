@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import * as XLSX from "xlsx";
 import { parse } from "csv-parse/sync";
+import { generateTeacherId } from "@/lib/teacherIdGenerator";
 
 async function parseImportRows(file: File): Promise<string[][]> {
   const extension = file.name.split(".").pop()?.toLowerCase();
@@ -138,6 +139,7 @@ export async function POST(request: Request) {
 
           await prisma.teacher.create({
             data: {
+              teacherId: await generateTeacherId(),
               userId: existingUser.id,
               ...teacherCreateData,
             },
@@ -165,6 +167,7 @@ export async function POST(request: Request) {
 
         await prisma.teacher.create({
           data: {
+            teacherId: await generateTeacherId(),
             userId: user.id,
             ...teacherCreateData,
           },

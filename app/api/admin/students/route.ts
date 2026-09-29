@@ -60,9 +60,10 @@ export async function POST(request: Request) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
     }
 
-    const { studentId, name, email, password, gradeLevel, sectionId, dateOfBirth, gender, phone, address, guardianName, guardianPhone } = await request.json();
+    const { studentId, name, firstName, lastName, email, password, gradeLevel, sectionId, dateOfBirth, gender, phone, address, guardianName, guardianPhone } = await request.json();
+    const fullName = `${firstName || ""} ${lastName || ""}`.trim() || name;
 
-    if (!name || !email || !gradeLevel || !sectionId || !password) {
+    if (!fullName || !email || !gradeLevel || !sectionId || !password) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
     }
 
@@ -95,7 +96,7 @@ export async function POST(request: Request) {
       const hashedPassword = await bcrypt.hash(password, 10);
       await prisma.user.update({
         where: { id: existingEmail.id },
-        data: { name, password: hashedPassword },
+        data: { name: fullName, password: hashedPassword },
       });
 
       const student = await prisma.student.create({
@@ -118,7 +119,7 @@ export async function POST(request: Request) {
         JSON.stringify({
           id: student.id,
           studentId: student.studentId,
-          name,
+          name: fullName,
           email,
           gradeLevel: student.gradeLevel,
           sectionId: student.sectionId,
@@ -141,7 +142,7 @@ export async function POST(request: Request) {
     const user = await prisma.user.create({
       data: {
         email,
-        name,
+        name: fullName,
         password: hashedPassword,
         role: "STUDENT",
       },
@@ -206,9 +207,10 @@ export async function PUT(request: Request) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
     }
 
-    const { id, name, email, gradeLevel, sectionId, password, dateOfBirth, gender, phone, address, guardianName, guardianPhone } = await request.json();
+    const { id, name, firstName, lastName, email, gradeLevel, sectionId, password, dateOfBirth, gender, phone, address, guardianName, guardianPhone } = await request.json();
+    const fullName = `${firstName || ""} ${lastName || ""}`.trim() || name;
 
-    if (!id || !name || !email || !gradeLevel || !sectionId) {
+    if (!id || !fullName || !email || !gradeLevel || !sectionId) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), { status: 400 });
     }
 
@@ -233,7 +235,7 @@ export async function PUT(request: Request) {
 
     // Update user
     let updateData: any = {
-      name,
+      name: fullName,
       email,
     };
 

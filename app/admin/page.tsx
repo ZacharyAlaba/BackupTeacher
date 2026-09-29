@@ -95,6 +95,7 @@ export default function AdminDashboard() {
   const [staffLoad, setStaffLoad] = useState<TeacherLoad[]>([]);
   const [alerts, setAlerts] = useState<SystemAlert[]>([]);
   const [sectionEnrollment, setSectionEnrollment] = useState<any[]>([]);
+  const [selectedEnrollmentGrade, setSelectedEnrollmentGrade] = useState<"G11" | "G12" | null>(null);
   const [csvRecords, setCsvRecords] = useState<Record<string, any> | null>(null);
   const [gradeStats, setGradeStats] = useState<any[]>([]);
   const [strandStats, setStrandStats] = useState<any[]>([]);
@@ -366,6 +367,14 @@ export default function AdminDashboard() {
       </div>
     );
   }
+
+  const enrollmentGrades = [
+    { value: "G11" as const, label: "Grade 11" },
+    { value: "G12" as const, label: "Grade 12" },
+  ];
+  const selectedGradeSections = selectedEnrollmentGrade
+    ? sectionEnrollment.filter((section) => section.gradeLevel === selectedEnrollmentGrade)
+    : [];
 
 
 
@@ -700,31 +709,71 @@ export default function AdminDashboard() {
         <div className="mt-8 rounded-lg border border-slate-700 bg-slate-800/50 p-5 light:bg-white">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-white light:text-slate-900">Section Enrollment</h3>
-            <span className="text-xs text-slate-400">{sectionEnrollment.length} Sections</span>
+            {selectedEnrollmentGrade ? (
+              <button
+                type="button"
+                onClick={() => setSelectedEnrollmentGrade(null)}
+                className="text-xs font-semibold text-blue-300 hover:text-blue-200"
+              >
+                View grades
+              </button>
+            ) : (
+              <span className="text-xs text-slate-400">Choose a grade</span>
+            )}
           </div>
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {sectionEnrollment.map((section) => (
-              <div key={section.sectionId} className="rounded-lg border border-slate-700 bg-slate-900/50 p-4 hover:bg-slate-900 transition light:bg-slate-50 light:hover:bg-white">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <div className="text-xs font-semibold text-slate-200">{section.sectionName}</div>
-                    <div className="text-xs text-slate-400">{section.gradeLevel} • {section.track}</div>
+          {!selectedEnrollmentGrade ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              {enrollmentGrades.map((grade) => {
+                const gradeSections = sectionEnrollment.filter((section) => section.gradeLevel === grade.value);
+                const enrolled = gradeSections.reduce((total, section) => total + section.enrolled, 0);
+
+                return (
+                  <button
+                    key={grade.value}
+                    type="button"
+                    onClick={() => setSelectedEnrollmentGrade(grade.value)}
+                    className="rounded-lg border border-slate-700 bg-slate-900/50 p-5 text-left transition hover:border-blue-400 hover:bg-slate-900 light:bg-slate-50 light:hover:bg-white"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-base font-bold text-white light:text-slate-900">{grade.label}</span>
+                      <span className="text-xs font-semibold text-blue-300">View sections</span>
+                    </div>
+                    <div className="mt-3 flex gap-5 text-xs text-slate-400">
+                      <span>{gradeSections.length} sections</span>
+                      <span>{enrolled} enrolled</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {selectedGradeSections.map((section) => (
+                <div key={section.sectionId} className="rounded-lg border border-slate-700 bg-slate-900/50 p-4 hover:bg-slate-900 transition light:bg-slate-50 light:hover:bg-white">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <div className="text-xs font-semibold text-slate-200">{section.sectionName}</div>
+                      <div className="text-xs text-slate-400">{section.gradeLevel} • {section.track}</div>
+                    </div>
+                    <span className="text-sm font-bold text-blue-300">{section.enrolled}/{section.capacity}</span>
                   </div>
-                  <span className="text-sm font-bold text-blue-300">{section.enrolled}/{section.capacity}</span>
+                  <div className="h-2 rounded-full bg-slate-700 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(section.percentage, 100)}%`,
+                        backgroundColor: section.percentage >= 100 ? '#ef4444' : section.percentage >= 80 ? '#f59e0b' : section.percentage >= 50 ? '#3b82f6' : '#10b981',
+                      }}
+                    />
+                  </div>
+                  <div className="text-xs text-slate-400 mt-2 text-right">{section.percentage}% full</div>
                 </div>
-                <div className="h-2 rounded-full bg-slate-700 overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${Math.min(section.percentage, 100)}%`,
-                      backgroundColor: section.percentage >= 100 ? '#ef4444' : section.percentage >= 80 ? '#f59e0b' : section.percentage >= 50 ? '#3b82f6' : '#10b981',
-                    }}
-                  />
-                </div>
-                <div className="text-xs text-slate-400 mt-2 text-right">{section.percentage}% full</div>
-              </div>
-            ))}
-          </div>
+              ))}
+              {selectedGradeSections.length === 0 && (
+                <p className="text-sm text-slate-400">No sections found for this grade.</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Audit Log Modal */}

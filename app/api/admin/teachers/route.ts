@@ -4,6 +4,17 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
+async function generateTeacherId() {
+  const year = new Date().getFullYear();
+  const prefix = `${year}-T-`;
+  const lastTeacher = await prisma.teacher.findFirst({
+    where: { teacherId: { startsWith: prefix } },
+    orderBy: { teacherId: "desc" },
+  });
+  const lastNumber = lastTeacher ? Number(lastTeacher.teacherId.split("-").pop()) || 0 : 0;
+  return `${prefix}${String(lastNumber + 1).padStart(3, "0")}`;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -12,14 +23,21 @@ export async function GET(request: NextRequest) {
     }
 
     const teachers = await prisma.teacher.findMany({
-        include: {
+        select: {
+          id: true,
+          createdAt: true,
           user: { select: { name: true, email: true } },
           qualifications: { select: { subjectId: true } },
         },
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(teachers);
+    const teachersWithDisplayIds = teachers.map((teacher) => ({
+      ...teacher,
+      teacherId: `T-${teacher.id.slice(-6).toUpperCase()}`,
+    }));
+
+    return NextResponse.json(teachersWithDisplayIds);
   } catch (error) {
     console.error("Teachers fetch error:", error);
     return NextResponse.json({ error: "Failed to fetch teachers" }, { status: 500 });
@@ -33,10 +51,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, email, password, dateOfBirth, gender, phone, address } = await request.json();
+    const { name, firstName, lastName, email, password, dateOfBirth, gender, phone, address } = await request.json();
+    const fullName = `${firstName || ""} ${lastName || ""}`.trim() || name;
 
-    if (!name || !email || !password) {
-      return NextResponse.json({ error: "Name, email, and password required" }, { status: 400 });
+    if (!fullName || !email || !password) {
+      return NextResponse.json({ error: "First name, last name, email, and password required" }, { status: 400 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -44,7 +63,7 @@ export async function POST(request: NextRequest) {
     // Create user first
     const user = await prisma.user.create({
       data: {
-        name,
+        name: fullName,
         email,
         password: hashedPassword,
         role: "TEACHER",
@@ -54,6 +73,7 @@ export async function POST(request: NextRequest) {
     // Create teacher with profile fields
     const teacher = await prisma.teacher.create({
       data: {
+        teacherId: await generateTeacherId(),
         userId: user.id,
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
         gender: gender || null,
@@ -88,7 +108,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, name, email, dateOfBirth, gender, phone, address } = await request.json();
+    const { id, name, firstName, lastName, email, dateOfBirth, gender, phone, address } = await request.json();
+    const fullName = `${firstName || ""} ${lastName || ""}`.trim() || name;
 
     if (!id) {
       return NextResponse.json({ error: "Teacher ID required" }, { status: 400 });
@@ -107,7 +128,7 @@ export async function PUT(request: NextRequest) {
     await prisma.user.update({
       where: { id: teacher.userId },
       data: {
-        ...(name && { name }),
+        ...(fullName && { name: fullName }),
         ...(email && { email }),
       },
     });

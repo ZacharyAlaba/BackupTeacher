@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Image from "next/image";
+import { signIn } from "next-auth/react";
 
 type OTPFormProps = {
   email: string;
@@ -41,7 +42,6 @@ export default function OTPForm({ email, password, role, onBack }: OTPFormProps)
       }
 
       // Now sign in with credentials
-      const { signIn } = await import("next-auth/react");
       const result = await signIn("credentials", {
         identifier: email,
         password,

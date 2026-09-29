@@ -25,6 +25,7 @@ interface MasterScheduleTableProps {
 interface Section {
   id: string;
   name: string;
+  scheduleKey?: string | null;
   gradeLevel: string;
   track: string;
 }
@@ -38,6 +39,7 @@ interface Teacher {
 interface Subject {
   id: string;
   name: string;
+  scheduleKey?: string | null;
   gradeLevel: string;
   track?: string | null;
 }
@@ -47,6 +49,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
   const [sections, setSections] = useState<Section[]>([]);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [selectedGrade, setSelectedGrade] = useState("G11");
+  const [selectedSectionIndex, setSelectedSectionIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -61,11 +64,11 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
   const loadData = useCallback(async () => {
     try {
       const [schedulesRes, sectionsRes, timeSlotsRes, teachersRes, subjectsRes] = await Promise.all([
-        fetch("/api/admin/schedules"),
-        fetch("/api/admin/sections"),
-        fetch("/api/admin/time-slots"),
-        fetch("/api/admin/teachers"),
-        fetch("/api/admin/subjects"),
+        fetch("/api/admin/schedules", { cache: "no-store" }),
+        fetch("/api/admin/sections", { cache: "no-store" }),
+        fetch("/api/admin/time-slots", { cache: "no-store" }),
+        fetch("/api/admin/teachers", { cache: "no-store" }),
+        fetch("/api/admin/subjects", { cache: "no-store" }),
       ]);
 
       if (schedulesRes.ok) {
@@ -96,8 +99,8 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     endTime: "18:00",
   };
 
-  function normalizeSectionKey(section: { name: string; gradeLevel: string; track: string }) {
-    const name = (section.name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  function normalizeSectionKey(section: { name: string; scheduleKey?: string | null; gradeLevel: string; track: string }) {
+    const name = (section.scheduleKey || section.name || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     const grade = (section.gradeLevel || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     const track = (section.track || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     return `${grade}:${track}:${name}`;
@@ -116,11 +119,18 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     ).values()
   );
 
+  useEffect(() => {
+    setSelectedSectionIndex(0);
+  }, [selectedGrade]);
+
+  const currentSection = gradeSections[selectedSectionIndex] || gradeSections[0];
+  const displayedSections = currentSection ? [currentSection] : [];
+
   // Add Friday 5:00-6:00 only when PHYTAGORAS or PDL are present in Grade 11
   const effectiveTimeSlots = [...timeSlots];
   if (
     selectedGrade === "G11" &&
-    gradeSections.some((section) => allowedExtraSections.has(normalizeSectionName(section.name))) &&
+    gradeSections.some((section) => allowedExtraSections.has(normalizeSectionName(section.scheduleKey || section.name))) &&
     !effectiveTimeSlots.some((slot) => slot.day === "Friday" && slot.startTime === "17:00")
   ) {
     effectiveTimeSlots.push(fridayExtraSlot);
@@ -140,6 +150,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     const timeB = Number(b.startTime.replace(":", ""));
     return timeA - timeB;
   });
+  const fixedBreakStartTimes = new Set(["09:45", "12:00"]);
 
   // Get schedule for a specific slot and section
   function getScheduleForSlot(sectionId: string, timeSlotId: string): ScheduleBlock | undefined {
@@ -645,7 +656,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     return Array.from(neutralSections).some((s) => key.includes(s) || s.includes(key));
   }
 
-  function getImagePrefill(sectionName: string, day: string, startTime: string) {
+  function getImagePrefill(sectionKey: string, day: string, startTime: string) {
     const fixedBreaks: Record<string, { label: string; bg: string; textColor: string; disableClick: boolean }> = {
       "09:45": { label: "RECESS", bg: "bg-rose-300", textColor: "text-black", disableClick: true },
       "12:00": { label: "LUNCH BREAK", bg: "bg-rose-300", textColor: "text-black", disableClick: true },
@@ -655,7 +666,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
       return { day, startTime, ...fixedBreaks[startTime] };
     }
 
-    const key = (sectionName || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const key = (sectionKey || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     const foundKey = Object.keys(imagePrefill).find((k) => key.includes(k) || k.includes(key));
     if (!foundKey) return null;
     const entries = imagePrefill[foundKey];
@@ -670,6 +681,28 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     if (!label) return "";
 
     const normalizedLabel = normalizeSubjectLabel(label);
+    const legacySubjectKeyMap: Record<string, string> = {
+      HRGP: "HOMEROOMGUIDANCEPROGRAM",
+      PR: "PRACTICALRESEARCH1",
+      PR1: "PRACTICALRESEARCH1",
+      STAT: "STATISTICSANDPROBABILITY",
+      HOPE: gradeLevel === "G12"
+        ? "HEALTHOPTIMIZATIONPROGRAMFOREDUCATION4"
+        : "HEALTHOPTIMIZATIONPROGRAMFOREDUCATION3",
+      READINGWRITING: "READINGANDWRITINGSKILLS",
+      READINGANDWRITING: "READINGANDWRITINGSKILLS",
+      PHYSCI: "PHYSICALSCIENCE",
+      EIM: "ELECTRICALINSTALLATIONANDMAINTENANCE",
+      UCSP: "UNDERSTANDINGCULTURESOCIETYANDPOLITICS",
+      PAGBASA: "PAGBASAATPAGSUSURINGIBAIBANGTEKSTOTUNGOSAPANANALIKSIK",
+    };
+    const subjectKey = legacySubjectKeyMap[normalizedLabel] || normalizedLabel;
+    const keyMatch = subjects.find(
+      (subject) =>
+        normalizeSubjectLabel(subject.scheduleKey || "") === subjectKey &&
+        (!gradeLevel || subject.gradeLevel === gradeLevel)
+    );
+    if (keyMatch) return keyMatch.id;
     const exactMatch = subjects.find(
       (subject) => normalizeSubjectLabel(subject.name) === normalizedLabel
     );
@@ -789,6 +822,11 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     }
 
     return "";
+  }
+
+  function getCurrentPrefillLabel(label: string, gradeLevel: string) {
+    const subjectId = findSubjectIdForPrefill(label, gradeLevel);
+    return subjects.find((subject) => subject.id === subjectId)?.name || label;
   }
 
   function getSubjectDisplayLabel(subjectName: string) {
@@ -973,7 +1011,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
       const matchingSlotIds = timeSlots
         .filter((timeSlot) => {
           const prefill = getImagePrefill(
-            selectedSection?.name || "",
+            selectedSection?.scheduleKey || selectedSection?.name || "",
             timeSlot.day,
             timeSlot.startTime
           );
@@ -1006,14 +1044,19 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
       });
 
       if (response.ok) {
+        const createdSchedules = await response.json();
+        const createdScheduleList = Array.isArray(createdSchedules)
+          ? createdSchedules
+          : [createdSchedules];
+        const updatedSchedules = [...schedules, ...createdScheduleList];
+        setSchedules(updatedSchedules);
+        onSchedulesUpdate?.(updatedSchedules);
         setSuccess(`Teacher assigned to ${matchingSlotIds.length} matching subject slot(s)!`);
         setShowModal(false);
         setSelectedSlot(null);
         setSelectedTeacher("");
         setSelectedSubject("");
         setPrefillLabel("");
-        // Reload data
-        loadData();
       } else {
         const data = await response.json();
         setError(data.error || "Failed to assign class");
@@ -1063,8 +1106,9 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
 
   return (
     <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-6 rounded-xl">
-      {/* Grade Selector */}
-      <div className="mb-6 flex items-center gap-4">
+      {/* Grade and section navigation */}
+      <div className="mb-6 space-y-4">
+        <div className="flex flex-wrap items-center gap-4">
         <span className="text-sm font-semibold text-slate-300">Grade Level:</span>
         <div className="flex gap-2">
           <button
@@ -1093,19 +1137,62 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
         </span>
       </div>
 
+        {gradeSections.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedSectionIndex(Math.max(0, selectedSectionIndex - 1))}
+              disabled={selectedSectionIndex === 0}
+              className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <div className="group relative">
+              <button
+                type="button"
+                className="rounded-lg border border-indigo-400 bg-indigo-600 px-4 py-2 text-sm font-semibold text-white"
+                title="Hover over a section to preview it"
+              >
+                {currentSection?.name} ({selectedSectionIndex + 1}/{gradeSections.length})
+              </button>
+              <div className="invisible absolute left-0 top-full z-30 mt-2 min-w-52 rounded-lg border border-slate-600 bg-slate-900 p-2 opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100">
+                {gradeSections.map((section, index) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => setSelectedSectionIndex(index)}
+                    className={`block w-full rounded px-3 py-2 text-left text-sm transition hover:bg-slate-700 ${index === selectedSectionIndex ? "bg-slate-700 text-white" : "text-slate-300"}`}
+                  >
+                    {section.name} <span className="text-xs text-slate-500">({section.track})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedSectionIndex(Math.min(gradeSections.length - 1, selectedSectionIndex + 1))}
+              disabled={selectedSectionIndex >= gradeSections.length - 1}
+              className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Master Schedule Table */}
-      <div className="mb-2 text-xs text-slate-400">Tip: Scroll horizontally to view all sections.</div>
-      <div className="overflow-x-auto border border-slate-700 rounded-lg">
-        <table className="min-w-max border-collapse bg-slate-800">
+      <div className="mb-2 text-xs text-slate-400">One section is shown at a time. Use Next or hover the section name to switch.</div>
+      <div className="w-full overflow-hidden border border-slate-700 rounded-lg">
+        <table className="w-full table-fixed border-collapse bg-slate-800">
           <thead>
             <tr className="bg-slate-900 border-b border-slate-700">
               {/* Time column */}
-              <th className="border border-slate-700 px-4 py-3 text-left text-sm font-bold text-slate-300 w-44 bg-slate-950 sticky left-0 z-20">
+              <th className="w-28 border border-slate-700 px-2 py-3 text-left text-xs font-bold text-slate-300 bg-slate-950 sticky left-0 z-20">
                 TIME
               </th>
 
               {/* Section columns */}
-              {gradeSections.map((section, sectionIndex) => (
+              {displayedSections.map((section, sectionIndex) => (
                 <th
                   key={section.id}
                   colSpan={5}
@@ -1122,12 +1209,12 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
             {/* Days row */}
             <tr className="bg-slate-900 border-b border-slate-700">
               <th className="border border-slate-700 px-3 py-2 bg-slate-950"></th>
-              {gradeSections.map((section, sectionIndex) => (
+              {displayedSections.map((section, sectionIndex) => (
                 <React.Fragment key={`days-${section.id}`}>
                   {uniqueDays.map((day, dayIndex) => (
                     <th
                       key={`${section.id}-${day}`}
-                      className={`border border-slate-700 px-2 py-2 text-center text-xs font-semibold text-slate-300 min-w-[84px] ${
+                      className={`border border-slate-700 px-2 py-3 text-center text-xs font-semibold text-slate-300 ${
                         sectionIndex > 0 && dayIndex === 0 ? "border-l-4 border-l-indigo-500/70" : ""
                       }`}
                     >
@@ -1143,18 +1230,26 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
             {rowTimeSlots.map((timeSlot, rowIndex) => (
               <tr key={timeSlot.id} className="border-b border-slate-700 hover:bg-slate-700/30">
                 {/* Time cell */}
-                <td className={`border border-slate-700 px-4 py-3 text-sm font-bold text-slate-200 bg-slate-950 sticky left-0 z-10 whitespace-nowrap ${
+                <td className={`border border-slate-700 px-2 py-3 text-xs font-bold text-slate-200 bg-slate-950 sticky left-0 z-10 whitespace-nowrap ${
                   rowIndex % 2 === 0 ? "bg-slate-950" : "bg-slate-900"
                 }`}>
-                  <div className="text-sm leading-none">
+                  <div className="text-xs leading-none">
                     {formatCompactTime(timeSlot.startTime)}-{formatCompactTime(timeSlot.endTime)}
                   </div>
                 </td>
 
                 {/* Schedule cells */}
-                {gradeSections.map((section, sectionIndex) => (
+                {displayedSections.map((section, sectionIndex) => (
                   <React.Fragment key={`cells-${section.id}`}>
-                    {uniqueDays.map((day, dayIndex) => {
+                    {fixedBreakStartTimes.has(timeSlot.startTime) ? (
+                      <td
+                        colSpan={uniqueDays.length}
+                        className="border border-slate-700 px-2 py-2 text-center text-xs font-semibold text-slate-950 bg-pink-300"
+                      >
+                        {timeSlot.startTime === "09:45" ? "RECESS" : "LUNCH BREAK"}
+                      </td>
+                    ) : (
+                    uniqueDays.map((day, dayIndex) => {
                       // Find slot for this day
                       const slot = timeSlots.find(
                         ts => ts.day === day && ts.startTime === timeSlot.startTime
@@ -1170,14 +1265,14 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                         return matchesGrade && matchesTrack;
                       });
 
-                      const prefill = slot ? getImagePrefill(section.name, day, slot.startTime) : null;
-                      const slotAllowed = slot && isSlotAllowedForSection(section.name, slot);
+                      const prefill = slot ? getImagePrefill(section.scheduleKey || section.name, day, slot.startTime) : null;
+                      const slotAllowed = slot && isSlotAllowedForSection(section.scheduleKey || section.name, slot);
                       const isBreakSlot = prefill?.disableClick === true;
 
                       return (
                         <td
                           key={`${section.id}-${day}-${timeSlot.id}`}
-                          className={`border border-slate-700 px-2 py-2 text-xs align-top h-28 min-w-[84px] ${
+                          className={`border border-slate-700 px-1 py-1 text-[10px] align-top h-20 ${
                             sectionIndex > 0 && dayIndex === 0 ? "border-l-4 border-l-indigo-500/70" : ""
                           } ${
                             schedule
@@ -1236,7 +1331,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                               <div
                                 className={`w-full h-full rounded ${prefill.bg || "bg-slate-600"} ${prefill.textColor || "text-white"} p-2 flex items-center justify-center text-[12px] font-semibold text-center leading-tight cursor-default`}
                               >
-                                {prefill.label}
+                                {getCurrentPrefillLabel(prefill.label, section.gradeLevel)}
                               </div>
                             ) : (
                               <button
@@ -1248,7 +1343,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                                 }}
                                 className={`w-full h-full rounded ${prefill.bg || "bg-slate-600"} ${prefill.textColor || "text-white"} p-2 flex items-center justify-center text-[12px] font-semibold text-center leading-tight`}
                               >
-                                {prefill.label}
+                                  {getCurrentPrefillLabel(prefill.label, section.gradeLevel)}
                               </button>
                             )
                           ) : slotAllowed ? (
@@ -1273,7 +1368,8 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                           )}
                         </td>
                       );
-                    })}
+                    })
+                    )}
                   </React.Fragment>
                 ))}
               </tr>

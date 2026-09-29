@@ -47,6 +47,10 @@ function loadSubjectsFromCSV() {
   }
 }
 
+function makeScheduleKey(name: string) {
+  return name.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -90,7 +94,7 @@ export async function POST(request: NextRequest) {
     }
 
     const subject = await prisma.subject.create({
-      data: { name, gradeLevel, track },
+      data: { name, scheduleKey: makeScheduleKey(name), gradeLevel, track },
     });
 
     return NextResponse.json(subject, { status: 201 });

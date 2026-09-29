@@ -24,6 +24,7 @@ type TimeSlot = {
 
 type TeacherProfile = {
   id: string;
+  teacherId: string;
   name: string;
   email: string;
   dateOfBirth?: string | null;
@@ -465,6 +466,7 @@ export default function TeacherDashboard() {
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {[
+                      ["Teacher ID", teacherProfile?.teacherId],
                       ["Email", teacherProfile?.email],
                       ["Date of Birth", teacherProfile?.dateOfBirth],
                       ["Gender", teacherProfile?.gender],

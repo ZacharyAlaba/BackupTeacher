@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { generateTeacherId } from "@/lib/teacherIdGenerator";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: Request) {
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
 
       await prisma.teacher.create({
         data: {
+          teacherId: await generateTeacherId(),
           userId: user.id,
         },
       });

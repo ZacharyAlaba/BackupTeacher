@@ -31,7 +31,8 @@ export default function StudentsPage() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     studentId: "",
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     gradeLevel: "",
     sectionId: "",
@@ -96,7 +97,7 @@ export default function StudentsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!formData.name || !formData.email || !formData.gradeLevel || !formData.sectionId) {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.gradeLevel || !formData.sectionId) {
       alert("Please fill in all fields");
       return;
     }
@@ -108,7 +109,11 @@ export default function StudentsPage() {
 
     try {
       const method = editingId ? "PUT" : "POST";
-      const body = editingId ? { ...formData, id: editingId } : formData;
+      const body = {
+        ...formData,
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        ...(editingId ? { id: editingId } : {}),
+      };
 
       const response = await fetch("/api/admin/students", {
         method,
@@ -119,7 +124,8 @@ export default function StudentsPage() {
       if (response.ok) {
         setFormData({
           studentId: "",
-          name: "",
+          firstName: "",
+          lastName: "",
           email: "",
           gradeLevel: "",
           sectionId: "",
@@ -162,9 +168,11 @@ export default function StudentsPage() {
   }
 
   function handleEdit(student: Student) {
+    const nameParts = student.name.trim().split(/\s+/);
     setFormData({
       studentId: student.studentId,
-      name: student.name,
+      firstName: nameParts.shift() || "",
+      lastName: nameParts.join(" "),
       email: student.email,
       gradeLevel: student.gradeLevel,
       sectionId: student.sectionId,
@@ -268,7 +276,8 @@ export default function StudentsPage() {
             onClick={() => {
               setFormData({
                 studentId: "",
-                name: "",
+                firstName: "",
+                lastName: "",
                 email: "",
                 gradeLevel: "",
                 sectionId: "",
@@ -329,12 +338,24 @@ export default function StudentsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Name *</label>
+                <label className="block text-sm font-medium text-slate-300 mb-2">First Name *</label>
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Student name"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  placeholder="First name"
+                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Last Name *</label>
+                <input
+                  type="text"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  placeholder="Last name"
                   className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
                   required
                 />

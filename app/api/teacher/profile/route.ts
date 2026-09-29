@@ -28,6 +28,7 @@ export async function GET() {
 
     return NextResponse.json({
       id: teacher.id,
+      teacherId: teacher.teacherId,
       name: teacher.user.name,
       email: teacher.user.email,
       dateOfBirth: teacher.dateOfBirth?.toISOString().split("T")[0] ?? null,
