@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { OTP_CONFIG } from '@/lib/otp-utils';
+import { OTP_CONFIG, OTP_PURPOSE } from '@/lib/otp-utils';
 import { createOtpSessionToken, OTP_SESSION_COOKIE } from '@/lib/otp-session';
 
 function createSupabaseAdmin() {
@@ -40,7 +40,8 @@ export async function POST(request: NextRequest) {
     const { data: otpRecords, error: fetchError } = await supabase
       .from('OTP')
       .select('id,email,code,attempts,expiresAt,createdAt')
-      .ilike('email', email);
+      .ilike('email', email)
+      .eq('purpose', OTP_PURPOSE.LOGIN);
 
     if (fetchError) {
       console.error('OTP fetch error:', fetchError.message);
@@ -81,7 +82,11 @@ export async function POST(request: NextRequest) {
 
     if (!matchingRecord) {
       if (!latestRecord) {
-        await supabase.from('OTP').delete().eq('email', email);
+        await supabase
+          .from('OTP')
+          .delete()
+          .eq('email', email)
+          .eq('purpose', OTP_PURPOSE.LOGIN);
         return NextResponse.json(
           { error: 'OTP has expired. Please request a new one.' },
           { status: 410 }
@@ -89,7 +94,11 @@ export async function POST(request: NextRequest) {
       }
 
       if (latestRecord.attempts >= OTP_CONFIG.MAX_ATTEMPTS) {
-        await supabase.from('OTP').delete().eq('email', email);
+        await supabase
+          .from('OTP')
+          .delete()
+          .eq('email', email)
+          .eq('purpose', OTP_PURPOSE.LOGIN);
         return NextResponse.json(
           { error: 'Maximum OTP verification attempts exceeded. Please request a new OTP.' },
           { status: 429 }
@@ -114,7 +123,11 @@ export async function POST(request: NextRequest) {
     // A valid OTP consumes all outstanding codes for this login email.
     const [{ error: verificationUpdateError }] = await Promise.all([
       supabase.from('User').update({ otpVerifiedAt: new Date().toISOString() }).eq('email', email),
-      supabase.from('OTP').delete().eq('email', email),
+      supabase
+        .from('OTP')
+        .delete()
+        .eq('email', email)
+        .eq('purpose', OTP_PURPOSE.LOGIN),
     ]);
 
     if (verificationUpdateError) {

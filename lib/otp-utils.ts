@@ -34,14 +34,24 @@ export function createGmailTransporter() {
 }
 
 // Send OTP via email
-export async function sendOTPEmail(email: string, otp: string, schoolName: string = 'Libertad National High School') {
+export async function sendOTPEmail(
+  email: string,
+  otp: string,
+  schoolName: string = 'Libertad National High School',
+  purpose: 'login' | 'password change' | 'password reset' = 'login'
+) {
   try {
     const transporter = createGmailTransporter();
+    const purposeLabel = purpose === 'login'
+      ? 'Login'
+      : purpose === 'password reset'
+        ? 'Password Reset'
+        : 'Password Change';
 
     const mailOptions = {
       from: process.env.GMAIL_USER,
       to: email,
-      subject: `Your ${schoolName} Login OTP Code`,
+      subject: `Your ${schoolName} ${purposeLabel} OTP Code`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -61,10 +71,10 @@ export async function sendOTPEmail(email: string, otp: string, schoolName: strin
           <div class="container">
             <div class="header">
               <h2>${schoolName}</h2>
-              <p>One-Time Password (OTP)</p>
+              <p>${purposeLabel} One-Time Password (OTP)</p>
             </div>
             <p>Hello,</p>
-            <p>Your one-time password (OTP) for login is:</p>
+            <p>Your one-time password (OTP) for ${purpose} is:</p>
             <div class="otp-box">
               <div class="otp-code">${otp}</div>
               <div class="warning">This OTP will expire in ${OTP_EXPIRY_MINUTES} minutes.</div>
@@ -130,3 +140,9 @@ export const OTP_CONFIG = {
   MAX_ATTEMPTS: MAX_ATTEMPTS,
   RESEND_COOLDOWN_SECONDS,
 };
+
+export const OTP_PURPOSE = {
+  LOGIN: "LOGIN",
+  PASSWORD_CHANGE: "PASSWORD_CHANGE",
+  PASSWORD_RESET: "PASSWORD_RESET",
+} as const;

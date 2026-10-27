@@ -231,6 +231,7 @@ model OTP {
   id        String   @id @default(cuid())
   email     String
   code      String   @unique
+  purpose   String   @default("LOGIN")
   attempts  Int      @default(0)
   expiresAt DateTime
   createdAt DateTime @default(now())

@@ -6,6 +6,7 @@ import {
   generateOTPCode,
   getOTPExpiryTime,
   sendOTPEmail,
+  OTP_PURPOSE,
 } from "@/lib/otp-utils";
 import { OTP_SESSION_COOKIE } from "@/lib/otp-session";
 import { randomUUID } from "crypto";
@@ -58,17 +59,22 @@ export async function POST(request: NextRequest) {
 
     if (!otp) {
       const otpCode = generateOTPCode();
-      await supabase.from("OTP").delete().eq("email", email);
+      await supabase
+        .from("OTP")
+        .delete()
+        .eq("email", email)
+        .eq("purpose", OTP_PURPOSE.PASSWORD_CHANGE);
       const { error: otpError } = await supabase.from("OTP").insert({
         id: randomUUID(),
         email,
         code: otpCode,
+        purpose: OTP_PURPOSE.PASSWORD_CHANGE,
         attempts: 0,
         expiresAt: getOTPExpiryTime().toISOString(),
       });
 
       if (otpError) throw otpError;
-      await sendOTPEmail(email, otpCode);
+      await sendOTPEmail(email, otpCode, undefined, "password change");
       return NextResponse.json({ requiresOtp: true }, { status: 202 });
     }
 
@@ -76,6 +82,7 @@ export async function POST(request: NextRequest) {
       .from("OTP")
       .select("*")
       .eq("email", email)
+      .eq("purpose", OTP_PURPOSE.PASSWORD_CHANGE)
       .gt("expiresAt", new Date().toISOString());
 
     const matchingOtp = (otpRecords || []).find(
@@ -86,7 +93,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid or expired verification code" }, { status: 401 });
     }
 
-    await supabase.from("OTP").delete().eq("email", email);
+    await supabase
+      .from("OTP")
+      .delete()
+      .eq("email", email)
+      .eq("purpose", OTP_PURPOSE.PASSWORD_CHANGE);
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({

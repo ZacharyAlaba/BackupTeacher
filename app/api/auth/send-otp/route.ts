@@ -5,6 +5,7 @@ import {
   sendOTPEmail,
   getOTPExpiryTime,
   OTP_CONFIG,
+  OTP_PURPOSE,
 } from '@/lib/otp-utils';
 import { hasValidOtpSession, OTP_SESSION_COOKIE } from '@/lib/otp-session';
 import bcrypt from 'bcryptjs';
@@ -99,7 +100,8 @@ export async function POST(request: NextRequest) {
     const { data: existingRecords, error: existingRecordsError } = await supabase
       .from('OTP')
       .select('id,attempts,expiresAt,createdAt')
-      .ilike('email', userEmail);
+      .ilike('email', userEmail)
+      .eq('purpose', OTP_PURPOSE.LOGIN);
 
     if (existingRecordsError) {
       console.error('Existing OTP lookup error:', existingRecordsError.message);
@@ -164,7 +166,8 @@ export async function POST(request: NextRequest) {
     const { error: deleteError } = await supabase
       .from('OTP')
       .delete()
-      .eq('email', userEmail);
+      .eq('email', userEmail)
+      .eq('purpose', OTP_PURPOSE.LOGIN);
 
     if (deleteError) {
       console.error('Previous OTP cleanup error:', deleteError.message);
@@ -178,6 +181,7 @@ export async function POST(request: NextRequest) {
       id: otpId,
       email: userEmail,
       code: otpCode,
+      purpose: OTP_PURPOSE.LOGIN,
       attempts: 0,
       expiresAt: expiryTime.toISOString(),
       createdAt,

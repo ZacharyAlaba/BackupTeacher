@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import OTPForm from "./OTPForm";
+import ForgotPasswordForm from "./ForgotPasswordForm";
 
 type UserRole = "ADMIN" | "TEACHER" | "STUDENT";
 
@@ -15,6 +16,7 @@ export default function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showOTPForm, setShowOTPForm] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [otpEmail, setOtpEmail] = useState("");
   const [otpResendAvailableAt, setOtpResendAvailableAt] = useState("");
   const [roleForLogin, setRoleForLogin] = useState<UserRole | null>(null);
@@ -93,6 +95,42 @@ export default function LoginForm() {
         role={roleForLogin}
         onBack={handleBackFromOTP}
       />
+    );
+  }
+
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen bg-slate-100 text-slate-900">
+        <div className="flex min-h-screen w-full items-stretch px-0">
+          <div className="grid min-h-screen w-full overflow-hidden bg-white shadow-2xl lg:grid-cols-2">
+            <section
+              className="relative hidden flex-col justify-between p-8 text-white md:flex md:p-10 lg:p-12"
+              style={{
+                backgroundImage: "url('/images/libertad.jpg')",
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }}
+            >
+              <div className="absolute inset-0 bg-black/50"></div>
+              <div className="relative z-10">
+                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/90">
+                  Libertad National High School
+                </p>
+                <h1 className="mt-3 text-4xl font-bold leading-tight">
+                  Senior High School<br />Scheduling Portal
+                </h1>
+              </div>
+              <p className="relative z-10 text-sm text-white/80">School year schedule management system</p>
+            </section>
+            <section className="flex flex-col justify-center p-8 md:p-12 lg:px-16 lg:py-16">
+              <ForgotPasswordForm
+                initialEmail={identifier}
+                onBack={() => setShowForgotPassword(false)}
+              />
+            </section>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -208,6 +246,13 @@ export default function LoginForm() {
                 {loading ? "Signing in..." : "Sign in"}
               </button>
             </form>
+            <button
+              type="button"
+              onClick={() => setShowForgotPassword(true)}
+              className="mt-4 self-end text-sm font-semibold text-indigo-700 hover:text-indigo-600"
+            >
+              Forgot password?
+            </button>
 
           </section>
         </div>

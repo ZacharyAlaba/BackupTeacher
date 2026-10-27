@@ -1,0 +1,5 @@
+ALTER TABLE "OTP"
+  ADD COLUMN IF NOT EXISTS "purpose" TEXT NOT NULL DEFAULT 'LOGIN';
+
+CREATE INDEX IF NOT EXISTS "OTP_email_purpose_idx"
+  ON "OTP" ("email", "purpose");

@@ -33,6 +33,11 @@
 
 ## Deployment to Vercel
 
+### OTP Purpose Migration
+- [ ] Before deploying password recovery, run `supabase/migrations/0010_add_otp_purpose.sql` in the Supabase SQL Editor
+- [ ] Confirm the `"OTP"` table now has the `"purpose"` column
+- [ ] Deploy the application after the migration succeeds
+
 ### Step 1: Link Repository
 - [ ] Go to https://vercel.com/dashboard
 - [ ] Click "Add New" → "Project"
