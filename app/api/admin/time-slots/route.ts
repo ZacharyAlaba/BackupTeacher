@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
 }
 
 async function loadTimeSlotsFromCsv(): Promise<TimeSlotRecord[]> {
-  const csvPath = path.resolve(process.cwd(), "..", "data", "time_slots.csv");
+  const csvPath = path.resolve(process.cwd(), "app", "data", "time_slots.csv");
   const raw = await fs.readFile(csvPath, "utf8");
   const lines = raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
 
