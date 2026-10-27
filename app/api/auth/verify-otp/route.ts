@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { OTP_CONFIG, markOTPVerifiedInCurrentProcess } from '@/lib/otp-utils';
+import { OTP_CONFIG } from '@/lib/otp-utils';
+import { createOtpSessionToken, OTP_SESSION_COOKIE } from '@/lib/otp-session';
 
 function createSupabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -60,20 +61,25 @@ export async function POST(request: NextRequest) {
     const activeRecords = [...otpRecords]
       .sort((first, second) => String(second.createdAt).localeCompare(String(first.createdAt)))
       .filter((record) => {
-      const expiryValue = String(record.expiresAt);
-      const expiryDate = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(expiryValue)
-        ? new Date(expiryValue)
-        : new Date(`${expiryValue}Z`);
-      return !Number.isNaN(expiryDate.getTime()) && now < expiryDate.getTime();
+        const expiryValue = String(record.expiresAt);
+        const expiryDate = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(expiryValue)
+          ? new Date(expiryValue)
+          : new Date(`${expiryValue}Z`);
+        return !Number.isNaN(expiryDate.getTime()) && now < expiryDate.getTime();
       });
 
-    const matchingRecord = activeRecords.find((record) => {
-      const storedCode = String(record.code || '').replace(/\D/g, '').padStart(OTP_CONFIG.LENGTH, '0');
-      return storedCode === otp && record.attempts < OTP_CONFIG.MAX_ATTEMPTS;
-    });
+    const latestRecord = activeRecords[0];
+    const latestCode = String(latestRecord?.code || '')
+      .replace(/\D/g, '')
+      .padStart(OTP_CONFIG.LENGTH, '0');
+    const matchingRecord =
+      latestRecord &&
+      latestRecord.attempts < OTP_CONFIG.MAX_ATTEMPTS &&
+      latestCode === otp
+        ? latestRecord
+        : null;
 
     if (!matchingRecord) {
-      const latestRecord = activeRecords[0];
       if (!latestRecord) {
         await supabase.from('OTP').delete().eq('email', email);
         return NextResponse.json(
@@ -82,7 +88,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (activeRecords.every((record) => record.attempts >= OTP_CONFIG.MAX_ATTEMPTS)) {
+      if (latestRecord.attempts >= OTP_CONFIG.MAX_ATTEMPTS) {
         await supabase.from('OTP').delete().eq('email', email);
         return NextResponse.json(
           { error: 'Maximum OTP verification attempts exceeded. Please request a new OTP.' },
@@ -119,9 +125,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    markOTPVerifiedInCurrentProcess(email);
-
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         message: 'OTP verified successfully',
@@ -129,6 +133,14 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     );
+    response.cookies.set(OTP_SESSION_COOKIE, createOtpSessionToken(email), {
+      httpOnly: true,
+      secure: request.nextUrl.protocol === 'https:',
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    return response;
   } catch (error) {
     console.error('Verify OTP error:', error);
     return NextResponse.json(

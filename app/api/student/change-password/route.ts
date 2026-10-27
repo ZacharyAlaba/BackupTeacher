@@ -6,9 +6,8 @@ import {
   generateOTPCode,
   getOTPExpiryTime,
   sendOTPEmail,
-  clearOTPSentInCurrentProcess,
-  clearOTPVerifiedInCurrentProcess,
 } from "@/lib/otp-utils";
+import { OTP_SESSION_COOKIE } from "@/lib/otp-session";
 import { randomUUID } from "crypto";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -95,10 +94,9 @@ export async function POST(request: NextRequest) {
       data: { password: hashedPassword, otpVerifiedAt: null },
     });
 
-    clearOTPSentInCurrentProcess(email);
-    clearOTPVerifiedInCurrentProcess(email);
-
-    return NextResponse.json({ success: true });
+    const response = NextResponse.json({ success: true });
+    response.cookies.delete(OTP_SESSION_COOKIE);
+    return response;
   } catch (error) {
     console.error("Student password change error:", error);
     return NextResponse.json({ error: "Failed to change password" }, { status: 500 });

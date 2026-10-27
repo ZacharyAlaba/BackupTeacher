@@ -4,11 +4,9 @@ import {
   generateOTPCode,
   sendOTPEmail,
   getOTPExpiryTime,
-  isOTPRequiredForCurrentProcess,
-  hasOTPSentInCurrentProcess,
-  markOTPSentInCurrentProcess,
-  hasOTPVerifiedInCurrentProcess,
+  OTP_CONFIG,
 } from '@/lib/otp-utils';
+import { hasValidOtpSession, OTP_SESSION_COOKIE } from '@/lib/otp-session';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 
@@ -25,7 +23,8 @@ function createSupabaseAdmin() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { email: rawEmail, password } = await request.json();
+    const { email: rawEmail, password, resend: resendRequest } = await request.json();
+    const resend = resendRequest === true;
     const identifier = String(rawEmail || '').trim();
     const email = identifier.toLowerCase();
 
@@ -47,14 +46,14 @@ export async function POST(request: NextRequest) {
     // Verify user exists with correct password
     let { data: user, error: userError } = await supabase
       .from('User')
-      .select('id,email,password,role,otpVerifiedAt')
+      .select('id,email,password,role')
       .eq('email', email)
       .maybeSingle();
 
     if (!user && !userError) {
       const { data: student } = await supabase
         .from('Student')
-        .select('User(id,email,password,role,otpVerifiedAt)')
+        .select('User(id,email,password,role)')
         .eq('studentId', identifier)
         .maybeSingle();
       user = Array.isArray((student as any)?.User)
@@ -86,26 +85,97 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (hasOTPVerifiedInCurrentProcess(user.email) || !isOTPRequiredForCurrentProcess(user.otpVerifiedAt)) {
-      return NextResponse.json({ success: true, requiresOtp: false, email: user.email, role: user.role });
+    const userEmail = String(user.email).toLowerCase();
+    if (hasValidOtpSession(request.cookies.get(OTP_SESSION_COOKIE)?.value, userEmail)) {
+      return NextResponse.json({
+        success: true,
+        requiresOtp: false,
+        email: userEmail,
+        role: user.role,
+      });
     }
 
-    const userEmail = String(user.email).toLowerCase();
+    const now = new Date();
+    const { data: existingRecords, error: existingRecordsError } = await supabase
+      .from('OTP')
+      .select('id,attempts,expiresAt,createdAt')
+      .ilike('email', userEmail);
 
-    // A verified user skips OTP until the development server is restarted.
-    if (hasOTPSentInCurrentProcess(userEmail)) {
-      return NextResponse.json({ success: true, requiresOtp: true, email: userEmail, role: user.role });
+    if (existingRecordsError) {
+      console.error('Existing OTP lookup error:', existingRecordsError.message);
+      return NextResponse.json(
+        { error: 'Could not check the current verification code. Please try again.' },
+        { status: 500 }
+      );
+    }
+
+    const parseDatabaseDate = (value: string) => {
+      const timestamp = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)
+        ? value
+        : `${value}Z`;
+      return new Date(timestamp);
+    };
+    const currentOtp = (existingRecords || [])
+      .filter((record) => {
+        const expiry = parseDatabaseDate(String(record.expiresAt));
+        return !Number.isNaN(expiry.getTime()) && now < expiry && record.attempts < OTP_CONFIG.MAX_ATTEMPTS;
+      })
+      .sort((first, second) =>
+        String(second.createdAt).localeCompare(String(first.createdAt))
+      )[0];
+
+    const resendAvailableAt = currentOtp
+      ? new Date(
+          parseDatabaseDate(String(currentOtp.createdAt)).getTime() +
+            OTP_CONFIG.RESEND_COOLDOWN_SECONDS * 1000
+        ).toISOString()
+      : now.toISOString();
+
+    if (!resend && currentOtp) {
+      return NextResponse.json({
+        success: true,
+        message: 'A verification code is already active.',
+        email: userEmail,
+        role: user.role,
+        requiresOtp: true,
+        resendAvailableAt,
+      });
+    }
+
+    if (resend && currentOtp && now < new Date(resendAvailableAt)) {
+      const retryAfterSeconds = Math.ceil(
+        (new Date(resendAvailableAt).getTime() - now.getTime()) / 1000
+      );
+      return NextResponse.json(
+        {
+          error: `Please wait ${retryAfterSeconds} seconds before requesting another code.`,
+          retryAfterSeconds,
+        },
+        { status: 429 }
+      );
     }
 
     // Generate OTP
     const otpCode = generateOTPCode();
+    const otpId = randomUUID();
     const expiryTime = getOTPExpiryTime();
     const createdAt = new Date().toISOString();
 
-    // Remove expired records, but keep recent codes because email delivery can
-    // arrive out of order when a user requests OTP more than once.
+    const { error: deleteError } = await supabase
+      .from('OTP')
+      .delete()
+      .eq('email', userEmail);
+
+    if (deleteError) {
+      console.error('Previous OTP cleanup error:', deleteError.message);
+      return NextResponse.json(
+        { error: 'Could not replace the previous verification code. Please try again.' },
+        { status: 500 }
+      );
+    }
+
     const { error: insertError } = await supabase.from('OTP').insert({
-      id: randomUUID(),
+      id: otpId,
       email: userEmail,
       code: otpCode,
       attempts: 0,
@@ -128,14 +198,15 @@ export async function POST(request: NextRequest) {
     } catch (emailError) {
       console.error('Email sending error:', emailError);
       // Delete the OTP if email fails
-      await supabase.from('OTP').delete().eq('email', userEmail);
+      const { error: cleanupError } = await supabase.from('OTP').delete().eq('id', otpId);
+      if (cleanupError) {
+        console.error('Failed to clean up unsent OTP:', cleanupError.message);
+      }
       return NextResponse.json(
         { error: 'Failed to send OTP email. Please check your email address.' },
         { status: 500 }
       );
     }
-
-    markOTPSentInCurrentProcess(userEmail);
 
     return NextResponse.json(
       {
@@ -144,6 +215,9 @@ export async function POST(request: NextRequest) {
         email: userEmail,
         role: user.role,
         requiresOtp: true,
+        resendAvailableAt: new Date(
+          Date.now() + OTP_CONFIG.RESEND_COOLDOWN_SECONDS * 1000
+        ).toISOString(),
       },
       { status: 200 }
     );

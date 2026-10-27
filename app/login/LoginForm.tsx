@@ -16,6 +16,7 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [showOTPForm, setShowOTPForm] = useState(false);
   const [otpEmail, setOtpEmail] = useState("");
+  const [otpResendAvailableAt, setOtpResendAvailableAt] = useState("");
   const [roleForLogin, setRoleForLogin] = useState<UserRole | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,6 +64,7 @@ export default function LoginForm() {
         }
       } else {
         setOtpEmail(data.email || identifier);
+        setOtpResendAvailableAt(data.resendAvailableAt || "");
         setRoleForLogin(authenticatedRole);
         setShowOTPForm(true);
       }
@@ -87,6 +89,7 @@ export default function LoginForm() {
       <OTPForm
         email={otpEmail}
         password={password}
+        resendAvailableAt={otpResendAvailableAt}
         role={roleForLogin}
         onBack={handleBackFromOTP}
       />

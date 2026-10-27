@@ -1,22 +1,27 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
 
 type OTPFormProps = {
   email: string;
   password: string;
+  resendAvailableAt: string;
   role: "ADMIN" | "TEACHER" | "STUDENT";
   onBack: () => void;
 };
 
-export default function OTPForm({ email, password, role, onBack }: OTPFormProps) {
+export default function OTPForm({ email, password, resendAvailableAt, role, onBack }: OTPFormProps) {
   const router = useRouter();
   const [otp, setOtp] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendAt, setResendAt] = useState(resendAvailableAt);
+  const [resendSeconds, setResendSeconds] = useState(0);
 
   const isAdmin = role === "ADMIN";
   const isTeacher = role === "TEACHER";
@@ -25,9 +30,53 @@ export default function OTPForm({ email, password, role, onBack }: OTPFormProps)
     ? `${emailName.slice(0, 2)}****@${emailDomain}`
     : email;
 
+  useEffect(() => {
+    const updateCountdown = () => {
+      setResendSeconds(
+        Math.max(0, Math.ceil((new Date(resendAt).getTime() - Date.now()) / 1000))
+      );
+    };
+
+    updateCountdown();
+    const intervalId = window.setInterval(updateCountdown, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [resendAt]);
+
+  const handleResendOTP = async () => {
+    setError("");
+    setMessage("");
+    setResending(true);
+
+    try {
+      const response = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, resend: true }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.retryAfterSeconds) {
+          setResendAt(new Date(Date.now() + data.retryAfterSeconds * 1000).toISOString());
+        }
+        setError(data.error || "Failed to resend verification code.");
+        return;
+      }
+
+      setOtp("");
+      setResendAt(data.resendAvailableAt || "");
+      setMessage("A new verification code was sent. Only this latest code will work.");
+    } catch {
+      setError("Could not resend the code. Please try again.");
+    } finally {
+      setResending(false);
+    }
+  };
+
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setMessage("");
     setLoading(true);
 
     try {
@@ -163,6 +212,11 @@ export default function OTPForm({ email, password, role, onBack }: OTPFormProps)
                   {error}
                 </div>
               )}
+              {message && (
+                <div className="rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-700">
+                  {message}
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -171,12 +225,23 @@ export default function OTPForm({ email, password, role, onBack }: OTPFormProps)
               >
                 {loading ? "Verifying..." : "Verify Code"}
               </button>
+              <button
+                type="button"
+                onClick={handleResendOTP}
+                disabled={resending || resendSeconds > 0}
+                className="w-full rounded-xl border border-indigo-200 px-4 py-3 font-semibold text-indigo-700 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {resending
+                  ? "Sending new code..."
+                  : resendSeconds > 0
+                    ? `Resend code in ${resendSeconds}s`
+                    : "Resend code"}
+              </button>
             </form>
 
             <div className="mt-6 space-y-3 text-sm text-slate-600">
               <p className="text-center">
-                One OTP is sent per server run. Logging out and logging in again will not send another code.
-                Restart <code>npm run dev</code>, then log in again to receive a new OTP.
+                Codes expire after 5 minutes. Resending creates a new code and invalidates the previous one.
               </p>
               <button
                 onClick={onBack}
