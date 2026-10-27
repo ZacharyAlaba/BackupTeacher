@@ -8,6 +8,31 @@ async function requireAdmin() {
   return session?.user?.role === "ADMIN";
 }
 
+function getRoomGradeError(name: string, gradeLevel: string) {
+  const grade = gradeLevel.trim().toUpperCase();
+  if (grade !== "G11" && grade !== "G12") return null;
+
+  const roomNumber = /^SHS-(\d{3})$/i.exec(name)?.[1];
+  const number = roomNumber ? Number(roomNumber) : NaN;
+  const isGradeRoom = grade === "G11"
+    ? number >= 101 && number <= 116
+    : number >= 201 && number <= 214;
+
+  if (isGradeRoom) return null;
+  return grade === "G11"
+    ? "Grade 11 rooms must use SHS-101 through SHS-116."
+    : "Grade 12 rooms must use SHS-201 through SHS-214.";
+}
+
+async function validateRoomGrade(name: string, sectionId: string) {
+  const section = await prisma.section.findUnique({
+    where: { id: sectionId },
+    select: { gradeLevel: true },
+  });
+  if (!section) return "Section not found.";
+  return getRoomGradeError(name, section.gradeLevel);
+}
+
 export async function GET() {
   try {
     if (!(await requireAdmin())) {
@@ -33,9 +58,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { name, sectionId } = await request.json();
-    const normalizedName = typeof name === "string" ? name.trim() : "";
+    const normalizedName = typeof name === "string" ? name.trim().toUpperCase() : "";
     if (!normalizedName || !sectionId) {
       return NextResponse.json({ error: "Room name and section are required" }, { status: 400 });
+    }
+    const gradeError = await validateRoomGrade(normalizedName, sectionId);
+    if (gradeError) {
+      return NextResponse.json({ error: gradeError }, { status: 400 });
     }
 
     const room = await prisma.room.create({
@@ -60,9 +89,13 @@ export async function PUT(request: NextRequest) {
     }
 
     const { id, name, sectionId } = await request.json();
-    const normalizedName = typeof name === "string" ? name.trim() : "";
+    const normalizedName = typeof name === "string" ? name.trim().toUpperCase() : "";
     if (!id || !normalizedName || !sectionId) {
       return NextResponse.json({ error: "Room, name, and section are required" }, { status: 400 });
+    }
+    const gradeError = await validateRoomGrade(normalizedName, sectionId);
+    if (gradeError) {
+      return NextResponse.json({ error: gradeError }, { status: 400 });
     }
 
     const existingRoom = await prisma.room.findUnique({
