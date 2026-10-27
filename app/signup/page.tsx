@@ -7,7 +7,8 @@ import Link from "next/link";
 
 export default function SignupPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -23,7 +24,7 @@ export default function SignupPage() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, confirmPassword }),
+        body: JSON.stringify({ firstName, lastName, email, password, confirmPassword }),
       });
 
       if (!res.ok) {
@@ -78,19 +79,35 @@ export default function SignupPage() {
             </div>
 
             <form onSubmit={handleSignup} className="mt-6 space-y-4">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-200" htmlFor="name">
-                  Full name
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  className="block w-full rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-slate-100 placeholder-slate-400 outline-none ring-0 transition focus:border-white/40"
-                  placeholder="Your full name"
-                />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-200" htmlFor="firstName">
+                    First Name
+                  </label>
+                  <input
+                    id="firstName"
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                    className="block w-full rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-slate-100 placeholder-slate-400 outline-none ring-0 transition focus:border-white/40"
+                    placeholder="First name"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-200" htmlFor="lastName">
+                    Last Name
+                  </label>
+                  <input
+                    id="lastName"
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                    className="block w-full rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-slate-100 placeholder-slate-400 outline-none ring-0 transition focus:border-white/40"
+                    placeholder="Last name"
+                  />
+                </div>
               </div>
 
               <div>

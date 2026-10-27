@@ -20,6 +20,10 @@ export default function OTPForm({ email, password, role, onBack }: OTPFormProps)
 
   const isAdmin = role === "ADMIN";
   const isTeacher = role === "TEACHER";
+  const [emailName, emailDomain] = email.split("@");
+  const maskedEmail = emailDomain
+    ? `${emailName.slice(0, 2)}****@${emailDomain}`
+    : email;
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,7 +136,7 @@ export default function OTPForm({ email, password, role, onBack }: OTPFormProps)
               </h2>
               <p className="mt-2 text-sm text-slate-600">
                 Enter the 6-digit code sent to<br />
-                <strong>{email}</strong>
+                <strong>{maskedEmail}</strong>
               </p>
             </div>
 

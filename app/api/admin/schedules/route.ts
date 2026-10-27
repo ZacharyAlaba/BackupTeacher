@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
         subject: true,
         section: true,
         timeSlot: true,
+        roomRecord: true,
       },
       orderBy: [{ timeSlot: { day: "asc" } }, { timeSlot: { startTime: "asc" } }],
     });
@@ -29,6 +30,7 @@ export async function GET(request: NextRequest) {
           ...schedule.subject,
           name: normalizeSubjectName(schedule.subject.name),
         },
+        room: schedule.roomRecord?.name ?? schedule.room ?? null,
       }))
     );
   } catch (error) {
@@ -45,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { teacherId, subjectId, sectionId, room, overrideRules, overrideReason } = body;
+    const { teacherId, subjectId, sectionId, roomId, room, overrideRules, overrideReason } = body;
 
     // Accept either a single timeSlotId or a group of timeSlotIds (e.g. a subject
     // that meets Monday-Thursday). The whole group is created atomically: if any
@@ -65,30 +67,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Override reason required" }, { status: 400 });
     }
 
-    const subject = await prisma.subject.findUnique({ where: { id: subjectId } });
-    const requestedTimeSlots = await prisma.timeSlot.findMany({ where: { id: { in: timeSlotIds } } });
+    const [subject, requestedTimeSlots, existingTeacherConflict, existingSectionConflict, qualification] = await Promise.all([
+      prisma.subject.findUnique({ where: { id: subjectId } }),
+      prisma.timeSlot.findMany({ where: { id: { in: timeSlotIds } } }),
+      prisma.scheduleBlock.findFirst({
+        where: { teacherId, timeSlotId: { in: timeSlotIds } },
+        include: { timeSlot: true },
+      }),
+      prisma.scheduleBlock.findFirst({
+        where: { sectionId, timeSlotId: { in: timeSlotIds } },
+        include: { timeSlot: true },
+      }),
+      overrideRules ? Promise.resolve(null) : prisma.teacherQualification.findFirst({
+        where: { teacherId, subjectId },
+      }),
+    ]);
 
     if (!subject || requestedTimeSlots.length !== timeSlotIds.length) {
       return NextResponse.json({ error: "Invalid subject or time slot" }, { status: 400 });
     }
 
-    // Check for conflicts across every slot in the group before creating anything.
-    const existingTeacherConflict = await prisma.scheduleBlock.findFirst({
-      where: { teacherId, timeSlotId: { in: timeSlotIds } },
-      include: { timeSlot: true },
-    });
+    const roomRecord = roomId
+      ? await prisma.room.findFirst({ where: { id: roomId, sectionId }, select: { id: true, name: true } })
+      : null;
+    if (roomId && !roomRecord) {
+      return NextResponse.json({ error: "Room does not belong to this section" }, { status: 400 });
+    }
 
+    // Check for conflicts across every slot in the group before creating anything.
     if (existingTeacherConflict) {
       return NextResponse.json(
         { error: `Teacher already has a class at this time (${existingTeacherConflict.timeSlot.day})` },
         { status: 400 }
       );
     }
-
-    const existingSectionConflict = await prisma.scheduleBlock.findFirst({
-      where: { sectionId, timeSlotId: { in: timeSlotIds } },
-      include: { timeSlot: true },
-    });
 
     if (existingSectionConflict) {
       return NextResponse.json(
@@ -136,10 +148,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Qualification check: ensure teacher is qualified to teach this subject
-    const qualification = await prisma.teacherQualification.findFirst({
-      where: { teacherId, subjectId },
-    });
-
     if (!qualification && !overrideRules) {
       return NextResponse.json({ error: "Teacher is not qualified for this subject" }, { status: 400 });
     }
@@ -153,13 +161,15 @@ export async function POST(request: NextRequest) {
             subjectId,
             sectionId,
             timeSlotId,
-            room: room || undefined,
+            roomId: roomRecord?.id ?? null,
+            room: roomRecord?.name ?? room ?? null,
           },
           include: {
             teacher: { include: { user: true } },
             subject: true,
             section: true,
             timeSlot: true,
+            roomRecord: true,
           },
         })
       )

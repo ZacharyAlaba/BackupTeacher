@@ -10,8 +10,11 @@ Upload from **Admin > Teachers > Bulk Import**.
 
 | Column | Required | Example | Notes |
 |---|---|---|---|
-| `name` | Yes | Maria Santos | Teacher's full name |
+| `firstName` | Yes | Maria | Teacher's first name; used to generate the temporary password |
+| `lastName` | Yes | Santos | Teacher's last name |
 | `email` | Yes | maria.santos@school.edu | Must be a valid, unused email address |
+
+Legacy files with `name,email` columns are still supported. The importer splits the full name at the first space.
 
 ### Optional columns
 
@@ -22,7 +25,7 @@ Upload from **Admin > Teachers > Bulk Import**.
 | `phone` | 09171234567 | Keep as text in Excel so leading zeroes remain |
 | `address` | 12 Main Street | Full address |
 
-The system generates a temporary password. Do not add a `password` column.
+The system generates a temporary password from the first name followed by a unique four-digit code and emails it to new teachers. Do not add a `password` column. If email delivery fails, the admin page displays the password for manual delivery.
 
 ## 2. Student Import
 
@@ -32,10 +35,13 @@ Upload from **Admin > Students > Bulk Import**.
 
 | Column | Required | Example | Notes |
 |---|---|---|---|
-| `name` | Yes | John Doe | Student's full name |
+| `firstName` | Yes | John | Student's first name |
+| `lastName` | Yes | Doe | Student's last name |
 | `email` | Yes | john.doe@school.edu | Must be a valid, unused email address |
 | `grade` | Yes | 11 | `11` becomes `G11`; `G11` is also accepted |
 | `section` | Yes | ABM-ARISTOTLE | Must exactly match an existing section name |
+
+Legacy files with `name,email,grade,section` columns are still supported. The importer splits the full name at the first space.
 
 ### Optional columns
 
@@ -48,7 +54,7 @@ Upload from **Admin > Students > Bulk Import**.
 | `guardianName` | Mary Doe | Optional |
 | `guardianPhone` | 09191234567 | Keep as text in Excel |
 
-Student IDs and temporary passwords are generated automatically.
+Student IDs and temporary passwords are generated automatically. The temporary password is emailed to the new student; if delivery fails, the admin import results show the password for manual delivery.
 
 ## 3. Attendance Class-List Import
 

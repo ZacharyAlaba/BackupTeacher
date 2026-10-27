@@ -1,12 +1,13 @@
 "use client";
 
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useTeacherTheme } from "@/lib/useTeacherTheme";
 import TeacherSidebar from "@/components/TeacherSidebar";
 import { ChevronDown, Download, Search } from "lucide-react";
+import { splitFullName } from "@/lib/splitFullName";
 
 type StudentItem = {
   id: string;
@@ -60,6 +61,7 @@ type AttendanceRecord = {
 
 type TeacherProfile = {
   id: string;
+  teacherId: string;
   name: string;
   email: string;
   dateOfBirth?: string | null;
@@ -84,15 +86,6 @@ export default function TeacherAttendancePage() {
   const [subjectMenuOpen, setSubjectMenuOpen] = useState(false);
   const [sectionSubjectAssignments, setSectionSubjectAssignments] = useState<SectionSubjectAssignment[]>([]);
   const [classList, setClassList] = useState<StudentItem[]>([]);
-  const [bulkImportFile, setBulkImportFile] = useState<File | null>(null);
-  const [bulkImporting, setBulkImporting] = useState(false);
-  const [bulkImportResult, setBulkImportResult] = useState<any>(null);
-  const [showAddStudent, setShowAddStudent] = useState(false);
-  const [newStudentName, setNewStudentName] = useState("");
-  const [newStudentEmail, setNewStudentEmail] = useState("");
-  const [addingStudent, setAddingStudent] = useState(false);
-  const [addStudentResult, setAddStudentResult] = useState<{ studentId: string; name: string; email: string; tempPassword: string } | null>(null);
-  const [addStudentError, setAddStudentError] = useState<string | null>(null);
   const [gradingPeriod, setGradingPeriod] = useState("Quarter 1");
   const [statusDrafts, setStatusDrafts] = useState<Record<string, string>>({});
   const [remarksDrafts, setRemarksDrafts] = useState<Record<string, string>>({});
@@ -100,7 +93,8 @@ export default function TeacherAttendancePage() {
   const [remarksDraftsByContext, setRemarksDraftsByContext] = useState<Record<string, Record<string, string>>>({});
   const [legendStatus, setLegendStatus] = useState<string>("");
   const [savingAttendance, setSavingAttendance] = useState(false);
-  const [attendancePage, setAttendancePage] = useState(0);
+  const [editingAttendanceHistory, setEditingAttendanceHistory] = useState(false);
+  const [historyDatePage, setHistoryDatePage] = useState(0);
   const [hoveredExcusedReason, setHoveredExcusedReason] = useState<{ reason: string; x: number; y: number } | null>(null);
   const [excusedReasonDialog, setExcusedReasonDialog] = useState<{ studentId: string; dateValue: string; reason: string } | null>(null);
   const [message, setMessage] = useState("");
@@ -317,7 +311,10 @@ export default function TeacherAttendancePage() {
 
   const selectedSection = sections.find((section) => section.id === selectedSectionId) || null;
 
-  const selectedStudents = useMemo(() => classList, [classList]);
+  const selectedStudents = useMemo(
+    () => [...classList].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })),
+    [classList]
+  );
 
   const availableSubjects = useMemo(() => {
     if (!selectedSection) {
@@ -448,13 +445,28 @@ export default function TeacherAttendancePage() {
   function exportAttendance() {
     const subjectName = subjects.find((subject) => subject.id === selectedSubjectId)?.name || "Subject";
     const sectionName = selectedSection?.name || "Section";
-    const dateHeaders = attendanceDates.map(({ label, exportLabel }) => exportLabel || label || "Date");
+    const dateHeaders = attendanceDates.map(({ value }) => {
+      const [year, month, day] = value.split("-").map(Number);
+      return new Date(year, month - 1, day).toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      });
+    });
     const sortedStudents = [...selectedStudents].sort((a, b) => a.name.localeCompare(b.name));
+    const statusCodes: Record<string, number> = {
+      PRESENT: 1,
+      ABSENT: 2,
+      LATE: 3,
+      LEFT_EARLY: 4,
+      EXCUSED: 5,
+    };
 
     const rows = [
       ["Student ID", "Name", "Email", "Section", "Subject", ...dateHeaders, "Remarks"],
       ...sortedStudents.map((student) => {
-        const attendanceRow = [
+        const attendanceRow: (string | number)[] = [
           student.studentId,
           student.name,
           student.email,
@@ -463,7 +475,8 @@ export default function TeacherAttendancePage() {
         ];
 
         attendanceDates.forEach(({ value }) => {
-          attendanceRow.push(statusDrafts[`${student.id}-${value}`] || "");
+          const status = statusDrafts[`${student.id}-${value}`];
+          attendanceRow.push(statusCodes[status] ?? "");
         });
 
         const remarks = attendanceDates
@@ -486,8 +499,19 @@ export default function TeacherAttendancePage() {
 
       return { wch: Math.max(12, Math.min(28, maxLength + 2)) };
     });
+    dateHeaders.forEach((_, index) => {
+      columnWidths[5 + index] = { wch: 2.67 };
+      const cell = worksheet[XLSX.utils.encode_cell({ r: 0, c: 5 + index })];
+      if (cell) {
+        cell.s = {
+          alignment: { horizontal: "center", vertical: "bottom", textRotation: 90 },
+          font: { sz: 12 },
+        };
+      }
+    });
 
     worksheet["!cols"] = columnWidths;
+    worksheet["!rows"] = [{ hpt: 240 }];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
@@ -563,11 +587,38 @@ export default function TeacherAttendancePage() {
     return map;
   }, [attendanceRecords, attendanceDates]);
 
-  const visibleAttendanceDates = useMemo(
-    () => attendanceDates.slice(attendancePage * 5, attendancePage * 5 + 5),
-    [attendanceDates, attendancePage]
-  );
-  const totalAttendancePages = Math.max(1, Math.ceil(attendanceDates.length / 5));
+  const currentAttendanceDate = useMemo(() => {
+    if (attendanceDates.length === 0) return null;
+    const now = new Date();
+    const todayValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    return attendanceDates.find((date) => date.value >= todayValue) || attendanceDates[attendanceDates.length - 1];
+  }, [attendanceDates]);
+
+  const historicalAttendanceDates = useMemo(() => {
+    const recordedDateValues = new Set(
+      attendanceRecords
+        .filter((record) =>
+          record.sectionId === selectedSectionId &&
+          record.subjectId === selectedSubjectId &&
+          record.gradingPeriod === gradingPeriod &&
+          Boolean(record.date)
+        )
+        .map((record) => record.date as string)
+    );
+
+    return attendanceDates.filter((date) => recordedDateValues.has(date.value));
+  }, [attendanceDates, attendanceRecords, selectedSectionId, selectedSubjectId, gradingPeriod]);
+
+  const historyDatesToBrowse = useMemo(() => {
+    const visibleValues = new Set(historicalAttendanceDates.map((date) => date.value));
+    if (currentAttendanceDate) visibleValues.add(currentAttendanceDate.value);
+    return attendanceDates.filter((date) => visibleValues.has(date.value));
+  }, [attendanceDates, currentAttendanceDate, historicalAttendanceDates]);
+  const historyDatePageCount = Math.max(1, Math.ceil(historyDatesToBrowse.length / 5));
+  const safeHistoryDatePage = Math.min(historyDatePage, historyDatePageCount - 1);
+  const visibleAttendanceDates = editingAttendanceHistory
+    ? historyDatesToBrowse.slice(safeHistoryDatePage * 5, safeHistoryDatePage * 5 + 5)
+    : currentAttendanceDate ? [currentAttendanceDate] : [];
   const statusOptions = [
     { value: "PRESENT", label: "Present", symbol: "✓", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" },
     { value: "ABSENT", label: "Absent", symbol: "-", className: "border-rose-500/30 bg-rose-500/10 text-rose-300" },
@@ -646,109 +697,9 @@ export default function TeacherAttendancePage() {
   ]);
 
   useEffect(() => {
-    if (attendanceDates.length === 0) {
-      setAttendancePage(0);
-      return;
-    }
-
-    const today = new Date();
-    const todayValue = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-    const currentDateIndex = attendanceDates.findIndex((date) => date.value >= todayValue);
-    const targetIndex = currentDateIndex === -1 ? attendanceDates.length - 1 : currentDateIndex;
-    setAttendancePage(Math.floor(targetIndex / 5));
-  }, [attendanceDates, selectedSectionId, selectedSubjectId, gradingPeriod]);
-
-  async function handleBulkImport(e: FormEvent) {
-    e.preventDefault();
-
-    if (!bulkImportFile) {
-      alert("Please select a file to import");
-      return;
-    }
-
-    if (!selectedSectionId || !selectedSubjectId) {
-      alert("Please select a section and subject before importing.");
-      return;
-    }
-
-    setBulkImporting(true);
-    setBulkImportResult(null);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", bulkImportFile);
-      formData.append("subjectId", selectedSubjectId);
-      formData.append("sectionId", selectedSectionId);
-
-      const response = await fetch("/api/teacher/subject-enrollment/bulk-import", {
-        method: "POST",
-        body: formData,
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        alert(`Error: ${result.error || "Failed to import students."}`);
-        setBulkImportResult(result);
-        return;
-      }
-
-      setBulkImportResult(result);
-      setBulkImportFile(null);
-      await loadClassList();
-    } catch (error) {
-      console.error("Failed to import class list:", error);
-      alert("Failed to import class list");
-    } finally {
-      setBulkImporting(false);
-    }
-  }
-
-  async function handleAddStudent(e: FormEvent) {
-    e.preventDefault();
-
-    if (!newStudentName || !newStudentEmail) {
-      setAddStudentError("Name and email are required");
-      return;
-    }
-
-    if (!selectedSectionId) {
-      setAddStudentError("Please select a section first.");
-      return;
-    }
-
-    setAddingStudent(true);
-    setAddStudentError(null);
-    setAddStudentResult(null);
-
-    try {
-      const response = await fetch("/api/teacher/students", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newStudentName,
-          email: newStudentEmail,
-          sectionId: selectedSectionId,
-          subjectId: selectedSubjectId,
-        }),
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        setAddStudentError(result.error || "Failed to add student.");
-        return;
-      }
-
-      setAddStudentResult(result);
-      setNewStudentName("");
-      setNewStudentEmail("");
-      await loadClassList();
-    } catch (error) {
-      console.error("Failed to add student:", error);
-      setAddStudentError("Failed to add student");
-    } finally {
-      setAddingStudent(false);
-    }
-  }
+    setEditingAttendanceHistory(false);
+    setHistoryDatePage(0);
+  }, [selectedSectionId, selectedSubjectId, gradingPeriod]);
 
   function setStudentStatus(studentId: string, dateValue: string, value: string) {
     const cellKey = `${studentId}-${dateValue}`;
@@ -760,6 +711,25 @@ export default function TeacherAttendancePage() {
         [cellKey]: value,
       },
     }));
+  }
+
+  function clearStudentStatus(studentId: string, dateValue: string) {
+    const cellKey = `${studentId}-${dateValue}`;
+    setStudentStatus(studentId, dateValue, "");
+    setRemarksDrafts((current) => ({ ...current, [cellKey]: "" }));
+    setRemarksDraftsByContext((current) => ({
+      ...current,
+      [attendanceContextKey]: {
+        ...(current[attendanceContextKey] || {}),
+        [cellKey]: "",
+      },
+    }));
+  }
+
+  function cancelExcusedReason() {
+    if (!excusedReasonDialog) return;
+    clearStudentStatus(excusedReasonDialog.studentId, excusedReasonDialog.dateValue);
+    setExcusedReasonDialog(null);
   }
 
   function cycleStudentStatus(studentId: string, dateValue: string) {
@@ -800,7 +770,7 @@ export default function TeacherAttendancePage() {
     }
 
     const statusesToSave = selectedStudents.flatMap((student) =>
-      attendanceDates.flatMap(({ value }) => {
+      visibleAttendanceDates.flatMap(({ value }) => {
         const rawStatusValue = statusDrafts[`${student.id}-${value}`];
         const recordKey = `${student.id}-${selectedSubjectId}-${gradingPeriod}-${value}`;
         if (!rawStatusValue && !recordLookup.has(recordKey)) {
@@ -874,7 +844,7 @@ export default function TeacherAttendancePage() {
   return (
     <div className="min-h-screen bg-[#061426] px-4 py-6 text-white light:bg-slate-100 light:text-slate-900">
       <div className="w-full">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[256px_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 gap-4 lg:pl-44">
           <TeacherSidebar
             teacherName={teacherProfile?.name || session?.user?.name || "Teacher"}
             theme={theme}
@@ -985,76 +955,10 @@ export default function TeacherAttendancePage() {
             </div>
 
             <div className="mt-6 rounded-2xl border border-slate-700 bg-[#0a2340]/95 p-5 shadow-2xl shadow-slate-950/30 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-semibold text-white light:text-slate-900">Add Student</h2>
-                  <p className="mt-2 text-sm text-slate-400 light:text-slate-500">Add a single student directly to this section&apos;s class list.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddStudent((current) => !current);
-                    setAddStudentError(null);
-                    setAddStudentResult(null);
-                  }}
-                  className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-500"
-                >
-                  {showAddStudent ? "Cancel" : "Add Student"}
-                </button>
-              </div>
-
-              {showAddStudent && (
-                <form onSubmit={handleAddStudent} className="mt-4 space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-slate-300 light:text-slate-600">Full Name *</label>
-                      <input
-                        type="text"
-                        value={newStudentName}
-                        onChange={(e) => setNewStudentName(e.target.value)}
-                        className="w-full rounded-xl border border-slate-600 bg-[#17425d] px-4 py-3 text-white outline-none transition focus:border-cyan-500 light:border-slate-300 light:bg-slate-50 light:text-slate-900"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-slate-300 light:text-slate-600">Email *</label>
-                      <input
-                        type="email"
-                        value={newStudentEmail}
-                        onChange={(e) => setNewStudentEmail(e.target.value)}
-                        className="w-full rounded-xl border border-slate-600 bg-[#17425d] px-4 py-3 text-white outline-none transition focus:border-cyan-500 light:border-slate-300 light:bg-slate-50 light:text-slate-900"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={addingStudent || !selectedSectionId}
-                    className="rounded-xl bg-[#21c55d] px-6 py-3 font-semibold text-white hover:bg-[#16a34a] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {addingStudent ? "Adding..." : "Save Student"}
-                  </button>
-                </form>
-              )}
-
-              {addStudentError && (
-                <div className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">{addStudentError}</div>
-              )}
-
-              {addStudentResult && (
-                <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-200">
-                  <p>{addStudentResult.name} was added ({addStudentResult.studentId}). This student now also appears in Admin &rarr; Students.</p>
-                  <p className="mt-1 text-slate-300">Temporary password for {addStudentResult.email}: <span className="font-mono font-semibold text-white">{addStudentResult.tempPassword}</span></p>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 rounded-2xl border border-slate-700 bg-[#0a2340]/95 p-5 shadow-2xl shadow-slate-950/30 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="text-2xl font-semibold text-white light:text-slate-900">Class List</h2>
-                  <p className="mt-2 text-sm text-slate-400 light:text-slate-500">Import students or export the current attendance record.</p>
+                  <p className="mt-2 text-sm text-slate-400 light:text-slate-500">Student enrollment is managed by Admin.</p>
                 </div>
                 <button
                   type="button"
@@ -1067,71 +971,6 @@ export default function TeacherAttendancePage() {
                 </button>
               </div>
 
-              <h3 className="mt-5 text-lg font-semibold text-white light:text-slate-900">Bulk Import Class List</h3>
-              <p className="mt-2 text-sm text-slate-400 light:text-slate-500">Upload a CSV or Excel file with columns: name, email. Student IDs are generated automatically; you may include studentId to match an existing student.</p>
-
-              <form onSubmit={handleBulkImport} className="mt-4 space-y-4">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-300 light:text-slate-600">CSV or Excel File *</label>
-                  <div className="flex items-center gap-3 rounded-xl border border-slate-600 bg-[#17425d] px-3 py-2 light:border-slate-300 light:bg-slate-50">
-                    <label className="cursor-pointer rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-500">
-                      Choose File
-                      <input
-                        type="file"
-                        accept=".csv,.xlsx,.xls"
-                        onChange={(e) => setBulkImportFile(e.target.files?.[0] || null)}
-                        className="hidden"
-                        required
-                      />
-                    </label>
-                    <span className="text-sm text-slate-300 light:text-slate-600">{bulkImportFile ? bulkImportFile.name : "No file chosen"}</span>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-slate-700 bg-[#16415d] p-4 light:border-slate-200 light:bg-slate-50">
-                  <p className="mb-3 text-sm text-slate-300 light:text-slate-600">CSV / Excel Format Example:</p>
-                  <pre className="overflow-x-auto text-xs text-slate-400 light:text-slate-500">
-name,email
-John Doe,john.doe@school.edu
-Jane Smith,jane.smith@school.edu
-                  </pre>
-                  <p className="mt-3 text-xs text-slate-400 light:text-slate-500">Name and email are required, just like Add Student. Student IDs are generated automatically. You can optionally add a studentId column for matching existing students.</p>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={bulkImporting || !selectedSectionId || !selectedSubjectId}
-                  className="rounded-xl bg-[#21c55d] px-6 py-3 font-semibold text-white hover:bg-[#16a34a] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {bulkImporting ? "Importing..." : "Import Students"}
-                </button>
-              </form>
-
-              {bulkImportResult && (
-                <div className="mt-4 space-y-4">
-                  <div className="rounded-xl border border-slate-600 bg-[#16415d] p-4 text-sm text-slate-300 light:border-slate-200 light:bg-slate-50 light:text-slate-600">
-                    <p>Imported: {bulkImportResult.success}</p>
-                    <p>Failed: {bulkImportResult.failed}</p>
-                  </div>
-                  {bulkImportResult.created?.length > 0 && (
-                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-200">
-                      <p className="mb-2 font-semibold">New students created (now also in Admin &rarr; Students):</p>
-                      {bulkImportResult.created.map((created: any) => (
-                        <p key={created.studentId}>
-                          {created.name} ({created.studentId}) - temp password: <span className="font-mono font-semibold text-white">{created.tempPassword}</span>
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  {bulkImportResult.errors?.length > 0 && (
-                    <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
-                      {bulkImportResult.errors.map((error: any) => (
-                        <p key={`${error.row}-${error.student}`}>Row {error.row}: {error.error}</p>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
             <div className="mt-6 overflow-hidden rounded-2xl border border-slate-700 bg-[#0a2340]/95 shadow-2xl shadow-slate-950/30 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
@@ -1151,29 +990,57 @@ Jane Smith,jane.smith@school.edu
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
+                  {editingAttendanceHistory && (
                     <button
                       type="button"
-                      onClick={() => setAttendancePage((page) => Math.max(0, page - 1))}
-                      disabled={attendancePage === 0}
+                      onClick={() => setHistoryDatePage((page) => Math.max(0, page - 1))}
+                      disabled={safeHistoryDatePage === 0}
+                      aria-label="Show older attendance dates"
+                      title="Older dates"
                       className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 light:border-slate-300 light:text-slate-600 light:hover:bg-slate-100"
-                      aria-label="Previous attendance dates"
                     >
                       ←
                     </button>
+                  )}
+                  <div className="text-right">
                     <div className="text-xs uppercase tracking-[0.16em] text-slate-400 light:text-slate-500">
                       {selectedSection?.name || "No section"} · {gradingPeriod}
                     </div>
+                    <div className="mt-1 text-[10px] text-slate-500 light:text-slate-400">
+                      {editingAttendanceHistory
+                        ? `Editing ${visibleAttendanceDates[0]?.label || ""}${visibleAttendanceDates.length > 1 ? ` – ${visibleAttendanceDates[visibleAttendanceDates.length - 1].label}` : ""}`
+                        : currentAttendanceDate?.label || "No scheduled date"}
+                    </div>
+                  </div>
+                  {editingAttendanceHistory && (
                     <button
                       type="button"
-                      onClick={() => setAttendancePage((page) => Math.min(totalAttendancePages - 1, page + 1))}
-                      disabled={attendancePage >= totalAttendancePages - 1}
+                      onClick={() => setHistoryDatePage((page) => Math.min(historyDatePageCount - 1, page + 1))}
+                      disabled={safeHistoryDatePage >= historyDatePageCount - 1}
+                      aria-label="Show newer attendance dates"
+                      title="Newer dates"
                       className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 light:border-slate-300 light:text-slate-600 light:hover:bg-slate-100"
-                      aria-label="Next attendance dates"
                     >
                       →
                     </button>
-                  </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!editingAttendanceHistory) {
+                        setHistoryDatePage(historyDatePageCount - 1);
+                      } else {
+                        setHistoryDatePage(0);
+                      }
+                      setEditingAttendanceHistory((editing) => !editing);
+                    }}
+                    disabled={!editingAttendanceHistory && historicalAttendanceDates.length === 0}
+                    aria-pressed={editingAttendanceHistory}
+                    title={editingAttendanceHistory ? "Finish editing dates" : "Edit attendance dates"}
+                    className="rounded-lg border border-slate-600 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40 light:border-slate-300 light:text-slate-700 light:hover:bg-slate-100"
+                  >
+                    {editingAttendanceHistory ? "Done" : "Edit Date"}
+                  </button>
 
                   <button
                     type="button"
@@ -1186,8 +1053,13 @@ Jane Smith,jane.smith@school.edu
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="min-w-[1080px] w-full border-separate border-spacing-0 text-left">
+              <div className="overflow-x-auto xl:overflow-x-hidden">
+                <table className="min-w-[1080px] w-full table-fixed border-separate border-spacing-0 text-left xl:min-w-0">
+                  <colgroup>
+                    <col className="w-[30%]" />
+                    {visibleAttendanceDates.map((date) => <col key={date.value} className="w-[8.5%]" />)}
+                    {statusOptions.map((option) => <col key={option.value} className="w-[5.5%]" />)}
+                  </colgroup>
                   <thead>
                     <tr className="bg-[#123653] text-[10px] uppercase tracking-[0.16em] text-slate-400 light:bg-slate-100 light:text-slate-500">
                       <th className="sticky left-0 z-20 border-b border-slate-700 bg-[#123653] px-4 py-3 text-left font-semibold light:border-slate-200 light:bg-slate-100">Student</th>
@@ -1242,40 +1114,42 @@ Jane Smith,jane.smith@school.edu
 
                               return (
                                 <td key={`${student.id}-${value}`} className="border-b border-slate-800 px-2 py-3 align-middle relative light:border-slate-200">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      cycleStudentStatus(student.id, value);
-                                    }}
-                                    aria-label={`${student.name} ${label} status: ${statusObj?.label || "unmarked"}. Click to change.`}
-                                    onMouseEnter={(event) => {
-                                      if (statusObj?.value === "EXCUSED") {
-                                        setHoveredExcusedReason({ reason: excusedReason || "No reason provided", x: event.clientX, y: event.clientY });
-                                      }
-                                    }}
-                                    onMouseMove={(event) => {
-                                      if (statusObj?.value === "EXCUSED") {
-                                        setHoveredExcusedReason({ reason: excusedReason || "No reason provided", x: event.clientX, y: event.clientY });
-                                      }
-                                    }}
-                                    onMouseLeave={() => setHoveredExcusedReason(null)}
-                                    className={`mx-auto flex h-8 w-8 items-center justify-center rounded-lg border text-sm font-semibold transition cursor-pointer ${
-                                      statusObj
-                                        ? statusObj.className
-                                        : "border-slate-700 bg-[#173a57] text-slate-300 light:border-slate-200 light:bg-slate-100 light:text-slate-400"
-                                    }`}
-                                  >
-                                    {statusObj ? statusObj.symbol : "-"}
-                                  </button>
+                                  <div className="flex items-center justify-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        cycleStudentStatus(student.id, value);
+                                      }}
+                                      aria-label={`${student.name} ${label} status: ${statusObj?.label || "unmarked"}. Click to change.`}
+                                      onMouseEnter={(event) => {
+                                        if (statusObj?.value === "EXCUSED") {
+                                          setHoveredExcusedReason({ reason: excusedReason || "No reason provided", x: event.clientX, y: event.clientY });
+                                        }
+                                      }}
+                                      onMouseMove={(event) => {
+                                        if (statusObj?.value === "EXCUSED") {
+                                          setHoveredExcusedReason({ reason: excusedReason || "No reason provided", x: event.clientX, y: event.clientY });
+                                        }
+                                      }}
+                                      onMouseLeave={() => setHoveredExcusedReason(null)}
+                                      className={`flex h-8 w-8 items-center justify-center rounded-lg border text-sm font-semibold transition cursor-pointer ${
+                                        statusObj
+                                          ? statusObj.className
+                                          : "border-slate-700 bg-[#173a57] text-slate-300 light:border-slate-200 light:bg-slate-100 light:text-slate-400"
+                                      }`}
+                                    >
+                                      {statusObj ? statusObj.symbol : "-"}
+                                    </button>
+                                  </div>
                                 </td>
                               );
                             })}
 
                             {statusOptions.map((option) => (
                               <td key={option.value} className="border-b border-slate-800 px-2 py-3 text-center align-middle light:border-slate-200">
-                                <span className={`inline-flex min-w-8 justify-center rounded-md border px-2 py-1 text-xs font-semibold ${option.className}`}>
+                                <span className={`inline-flex min-w-8 justify-center rounded-md border px-1 py-1 text-xs font-semibold ${option.className}`}>
                                   {statusCounts[option.value]}
                                 </span>
                               </td>
@@ -1309,7 +1183,7 @@ Jane Smith,jane.smith@school.edu
                       </div>
                       <button
                         type="button"
-                        onClick={() => setExcusedReasonDialog(null)}
+                        onClick={cancelExcusedReason}
                         className="text-xl leading-none text-slate-400 transition hover:text-white"
                         aria-label="Close excused reason dialog"
                       >
@@ -1329,7 +1203,7 @@ Jane Smith,jane.smith@school.edu
                     <div className="mt-5 flex justify-end gap-3">
                       <button
                         type="button"
-                        onClick={() => setExcusedReasonDialog(null)}
+                        onClick={cancelExcusedReason}
                         className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-800"
                       >
                         Cancel
@@ -1349,8 +1223,8 @@ Jane Smith,jane.smith@school.edu
             </div>
 
             {showProfileModal && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                <div className="bg-slate-800 border border-slate-700 rounded-xl p-8 max-w-lg w-full shadow-lg light:bg-white light:border-slate-200">
+              <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
+                <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-700 bg-slate-800 p-5 shadow-lg light:border-slate-200 light:bg-white sm:p-6">
                   <div className="mb-5 flex items-start justify-between gap-4">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300 light:text-indigo-600">Teacher account</p>
@@ -1380,12 +1254,20 @@ Jane Smith,jane.smith@school.edu
 
                   {!profileEditing ? (
                     <div className="space-y-3">
-                      <div className="rounded-lg border border-slate-600 bg-slate-700/50 p-4 light:border-slate-200 light:bg-slate-100">
-                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 light:text-slate-500">Name</p>
-                        <p className="mt-1 text-lg font-semibold text-white light:text-slate-900">{teacherProfile?.name || "Teacher"}</p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {[
+                          ["First Name", splitFullName(teacherProfile?.name || "Teacher").firstName],
+                          ["Last Name", splitFullName(teacherProfile?.name || "Teacher").lastName],
+                        ].map(([label, value]) => (
+                          <div key={label} className="rounded-lg border border-slate-600 bg-slate-700/50 p-3 light:border-slate-200 light:bg-slate-100">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 light:text-slate-500">{label}</p>
+                            <p className="mt-1 break-words text-sm font-semibold text-white light:text-slate-900">{value || "Not provided"}</p>
+                          </div>
+                        ))}
                       </div>
                       <div className="grid gap-3 sm:grid-cols-2">
                         {[
+                          ["Teacher ID", teacherProfile?.teacherId],
                           ["Email", teacherProfile?.email],
                           ["Date of Birth", teacherProfile?.dateOfBirth],
                           ["Gender", teacherProfile?.gender],

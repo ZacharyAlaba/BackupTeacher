@@ -6,14 +6,17 @@ import bcrypt from "bcryptjs";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, email, password, confirmPassword } = body as {
-      name: string;
+    const { firstName, lastName, name: legacyName, email, password, confirmPassword } = body as {
+      firstName?: string;
+      lastName?: string;
+      name?: string;
       email: string;
       password: string;
       confirmPassword: string;
     };
+    const name = `${firstName || ""} ${lastName || ""}`.trim() || legacyName?.trim() || "";
 
-    if (!name || !email || !password || !confirmPassword) {
+    if (!firstName && !legacyName || (firstName && !lastName) || !name || !email || !password || !confirmPassword) {
       return NextResponse.json(
         { message: "All fields are required." },
         { status: 400 }

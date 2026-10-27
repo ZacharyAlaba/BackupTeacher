@@ -153,6 +153,32 @@ export async function sendOTPEmail(email: string, otp: string, schoolName: strin
   }
 }
 
+async function sendAccountCredentialsEmail(accountType: "teacher" | "student", name: string, email: string, temporaryPassword: string) {
+  const transporter = createGmailTransporter();
+  await transporter.sendMail({
+    from: process.env.GMAIL_USER,
+    to: email,
+    subject: `Your Libertad NHS ${accountType === "teacher" ? "Teacher" : "Student"} Account`,
+    text: [
+      `Hello ${name},`,
+      '',
+      `Your ${accountType} account has been created for the Libertad National High School scheduling portal.`,
+      `Email: ${email}`,
+      `Temporary password: ${temporaryPassword}`,
+      '',
+      'Please sign in and change your password after logging in.',
+    ].join('\n'),
+  });
+}
+
+export async function sendTeacherCredentialsEmail(name: string, email: string, temporaryPassword: string) {
+  return sendAccountCredentialsEmail("teacher", name, email, temporaryPassword);
+}
+
+export async function sendStudentCredentialsEmail(name: string, email: string, temporaryPassword: string) {
+  return sendAccountCredentialsEmail("student", name, email, temporaryPassword);
+}
+
 // Calculate OTP expiry time
 export function getOTPExpiryTime(): Date {
   return new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);

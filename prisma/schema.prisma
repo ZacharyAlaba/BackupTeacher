@@ -105,8 +105,22 @@ model Section {
   gradeRecords   GradeRecord[]
   attendanceRecords AttendanceRecord[]
   subjectStudents SubjectStudent[]
+  rooms          Room[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
+}
+
+model Room {
+  id             String         @id @default(cuid())
+  name           String
+  sectionId      String
+  section        Section        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  scheduleBlocks ScheduleBlock[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([sectionId, name])
+  @@index([sectionId])
 }
 
 // Student enrollment in a subject (managed by teacher)
@@ -190,6 +204,8 @@ model ScheduleBlock {
   sectionId  String
   section    Section   @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   room       String?   // Optional room number
+  roomId     String?
+  roomRecord Room?     @relation(fields: [roomId], references: [id], onDelete: SetNull)
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 

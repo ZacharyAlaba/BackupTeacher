@@ -8,6 +8,7 @@ import {
   BookOpen,
   Building2,
   Clock,
+  MapPin,
   Download,
   Upload,
   ArrowRight,
@@ -25,6 +26,7 @@ const categories: { label: string; description: string; href: string; icon: Luci
   { label: "Students", description: "Add, edit or bulk import student records", href: "/admin/students", icon: GraduationCap, color: "text-cyan-400 bg-cyan-500/20 border-cyan-500/30" },
   { label: "Subjects", description: "Manage the subject curriculum", href: "/admin/subjects", icon: BookOpen, color: "text-purple-400 bg-purple-500/20 border-purple-500/30" },
   { label: "Sections", description: "Manage class sections and grade levels", href: "/admin/sections", icon: Building2, color: "text-yellow-400 bg-yellow-500/20 border-yellow-500/30" },
+  { label: "Rooms", description: "Manage rooms assigned to each section", href: "/admin/rooms", icon: MapPin, color: "text-teal-400 bg-teal-500/20 border-teal-500/30" },
   { label: "Time Slots", description: "Manage the daily class time slots", href: "/admin/time-slots", icon: Clock, color: "text-indigo-400 bg-indigo-500/20 border-indigo-500/30" },
 ];
 

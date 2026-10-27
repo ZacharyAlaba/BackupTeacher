@@ -344,21 +344,21 @@ export default function ScheduleBuilderPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="-mx-4 -my-6 min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-4 md:-mx-6 md:p-5 xl:-mx-8">
+      <div className="w-full">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-5">
           <button
             onClick={() => router.back()}
             className="mb-4 px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm"
           >
-            ← Back to Dashboard
+            ← Back
           </button>
-          <h1 className="text-4xl font-bold text-white mb-2">Schedule Builder</h1>
+          <h1 className="text-3xl font-bold text-white mb-1">Schedule Builder</h1>
           <p className="text-slate-400">Assign teachers to classes and manage schedules</p>
         </div>
 
-        <div className="mb-8 rounded-xl border border-slate-700 bg-slate-800 p-4 md:p-5">
+        <div className="mb-6 rounded-xl border border-slate-700 bg-slate-800 p-3 md:p-4">
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-white">Scheduling Grid</h2>
@@ -369,7 +369,7 @@ export default function ScheduleBuilderPage() {
           <MasterScheduleTable onSchedulesUpdate={setSchedules} />
         </div>
 
-        <div className="mb-8 rounded-xl border border-slate-700 bg-slate-800 p-6">
+        <div className="mb-6 rounded-xl border border-slate-700 bg-slate-800 p-4">
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-white">Teacher Timetable</h2>
@@ -397,7 +397,7 @@ export default function ScheduleBuilderPage() {
           ) : timetableSlots.length === 0 ? (
             <p className="text-slate-400">No time slots available yet.</p>
           ) : (
-            <Timetable schedule={timetableSchedule} timeSlots={timetableSlots} />
+            <Timetable schedule={timetableSchedule} timeSlots={timetableSlots} compact />
           )}
         </div>
 

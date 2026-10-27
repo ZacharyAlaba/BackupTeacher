@@ -11,6 +11,12 @@ interface Teacher {
   createdAt: string;
 }
 
+function generateTemporaryPasswordCode() {
+  const randomValues = new Uint32Array(1);
+  window.crypto.getRandomValues(randomValues);
+  return String(1000 + (randomValues[0] % 9000));
+}
+
 export default function TeachersPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -27,6 +33,7 @@ export default function TeachersPage() {
     phone: "",
     address: ""
   });
+  const [temporaryPasswordCode, setTemporaryPasswordCode] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [signupLinkCopied, setSignupLinkCopied] = useState(false);
@@ -37,6 +44,10 @@ export default function TeachersPage() {
   const [bulkImporting, setBulkImporting] = useState(false);
   const [bulkImportResult, setBulkImportResult] = useState<any>(null);
   const [signupUrl, setSignupUrl] = useState("/signup");
+  const firstNameForPassword = formData.firstName.trim().split(/\s+/)[0] || "";
+  const generatedTemporaryPassword = firstNameForPassword
+    ? `${firstNameForPassword.toLowerCase()}${temporaryPasswordCode}`
+    : "";
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -78,6 +89,7 @@ export default function TeachersPage() {
       const method = editingId ? "PUT" : "POST";
       const body = {
         ...formData,
+        password: editingId ? formData.password : generatedTemporaryPassword,
         name: `${formData.firstName} ${formData.lastName}`.trim(),
         ...(editingId ? { id: editingId } : {}),
       };
@@ -90,12 +102,15 @@ export default function TeachersPage() {
       if (response.ok) {
         const result = await response.json();
         setFormData({ firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
+        setTemporaryPasswordCode("");
         setEditingId(null);
         setShowForm(false);
         setSuccessMessage(
           editingId
             ? "Teacher updated successfully."
-            : "Teacher created successfully."
+            : result.emailSent
+              ? `Teacher created. Temporary password emailed to ${formData.email}.`
+              : `Teacher created, but email delivery failed. Send this temporary password manually: ${generatedTemporaryPassword}`
         );
         await fetchTeachers();
         window.setTimeout(() => setSuccessMessage(null), 8000);
@@ -156,10 +171,25 @@ export default function TeachersPage() {
         setShowBulkImport(result.failed > 0);
 
         if (result.created?.length > 0) {
-          const passwordSummary = result.created
-            .map((teacher: any) => `${teacher.name}: ${teacher.temporaryPassword}`)
-            .join("\n");
-          alert(`Temporary passwords for imported teachers:\n${passwordSummary}`);
+          const emailedCount = result.created.filter((teacher: any) => teacher.emailSent).length;
+          const emailFailures = result.created.filter((teacher: any) => !teacher.emailSent && teacher.temporaryPassword);
+          const linkedExistingCount = result.created.filter((teacher: any) => !teacher.emailSent && !teacher.temporaryPassword).length;
+          const notices: string[] = [];
+
+          if (emailedCount > 0) {
+            notices.push(`Temporary passwords emailed to ${emailedCount} teacher(s).`);
+          }
+          if (emailFailures.length > 0) {
+            const passwordSummary = emailFailures
+              .map((teacher: any) => `${teacher.name} (${teacher.email}): ${teacher.temporaryPassword}`)
+              .join("\n");
+            notices.push(`Some emails failed. Share these temporary passwords manually:\n${passwordSummary}`);
+          }
+          if (linkedExistingCount > 0) {
+            notices.push(`${linkedExistingCount} existing teacher account(s) were linked; their passwords were not changed or emailed.`);
+          }
+
+          if (notices.length > 0) alert(notices.join("\n\n"));
         }
 
         await fetchTeachers();
@@ -205,7 +235,7 @@ export default function TeachersPage() {
               onClick={() => router.back()}
               className="mb-4 px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm"
             >
-              ← Back to Dashboard
+              ← Back
             </button>
             <h1 className="text-4xl font-bold text-white mb-2">Teachers Management</h1>
             <p className="text-slate-400">View and manage all registered teachers</p>
@@ -219,7 +249,7 @@ export default function TeachersPage() {
             <div className="flex-1">
               <h3 className="text-lg font-bold text-white mb-2">How to Add Teachers</h3>
               <p className="text-slate-300 mb-4">
-                Teachers can either sign up through the signup page or be added directly from this admin panel. If you create them here, a temporary password will be generated for them.
+                Teachers can either sign up through the signup page or be added directly from this admin panel. Admin-created teacher accounts receive a temporary password by email.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 items-start">
                 <div className="flex-1 bg-slate-900/50 rounded-lg px-4 py-3 border border-slate-700 font-mono text-sm text-slate-300 break-all">
@@ -281,17 +311,19 @@ export default function TeachersPage() {
                   className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
-              <div>
-                <label className="block text-sm text-slate-300 mb-2">Password {editingId ? "(leave blank to keep)" : "*"}</label>
-                <input
-                  type="password"
-                  required={!editingId}
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="Enter password"
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
+              {!editingId && (
+                <div>
+                  <label className="block text-sm text-slate-300 mb-2">Temporary Password</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={generatedTemporaryPassword}
+                    placeholder="Enter a first name to generate"
+                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none"
+                  />
+                  <p className="mt-1 text-xs text-slate-400">First name followed by a unique 4-digit code.</p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm text-slate-300 mb-2">Date of Birth</label>
                 <input
@@ -370,6 +402,7 @@ export default function TeachersPage() {
               type="button"
               onClick={() => {
                 setFormData({ firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
+                setTemporaryPasswordCode(generateTemporaryPasswordCode());
                 setEditingId(null);
                 setSuccessMessage(null);
                 setShowForm(true);
@@ -408,7 +441,7 @@ export default function TeachersPage() {
           <div className="mb-8 p-6 bg-slate-800 rounded-lg border border-slate-700">
             <h2 className="text-2xl font-bold text-white mb-4">Bulk Import Teachers</h2>
             <p className="text-slate-400 mb-6">
-              Upload a CSV or Excel file with columns: name, email
+              Upload a CSV or Excel file with columns: firstName, lastName, email. Legacy name, email files are also supported. Temporary passwords are emailed to new teachers.
             </p>
 
             <form onSubmit={handleBulkImport} className="space-y-4">
@@ -426,9 +459,9 @@ export default function TeachersPage() {
               <div className="bg-slate-700/50 p-4 rounded-lg border border-slate-600">
                 <p className="text-sm text-slate-300 mb-3">CSV Format Example:</p>
                 <pre className="text-xs text-slate-400 overflow-x-auto">
-name,email
-John Doe,john@school.edu
-Jane Smith,jane@school.edu
+                firstName,lastName,email
+                John,Doe,john@school.edu
+                Jane,Smith,jane@school.edu
                 </pre>
               </div>
 
@@ -466,7 +499,13 @@ Jane Smith,jane@school.edu
                             <span>{teacher.name}</span>
                             <span className="font-mono text-green-400 font-medium">{teacher.email}</span>
                           </div>
-                          <div className="text-xs text-amber-300">Temporary password: <span className="font-mono text-amber-200">{teacher.temporaryPassword}</span></div>
+                          {teacher.emailSent ? (
+                            <div className="text-xs text-emerald-300">Temporary password emailed to this teacher.</div>
+                          ) : teacher.temporaryPassword ? (
+                            <div className="text-xs text-amber-300">Email failed. Temporary password: <span className="font-mono text-amber-200">{teacher.temporaryPassword}</span></div>
+                          ) : (
+                            <div className="text-xs text-amber-300">{teacher.emailError || "Existing account was linked; its password was not changed."}</div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -518,35 +557,45 @@ Jane Smith,jane@school.edu
               </p>
             </div>
           ) : (
-            <table className="w-full">
+            <table className="w-full table-fixed">
+              <colgroup>
+                <col className="w-[16%]" />
+                <col className="w-[12%]" />
+                <col className="w-[12%]" />
+                <col className="w-[28%]" />
+                <col className="w-[14%]" />
+                <col className="w-[18%]" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-slate-700 bg-slate-900">
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Teacher ID</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Name</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Email</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Created</th>
-                  <th className="px-6 py-3 text-right text-sm font-semibold text-slate-300">Actions</th>
+                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Teacher ID</th>
+                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">First Name</th>
+                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Last Name</th>
+                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Email</th>
+                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Created</th>
+                  <th className="whitespace-nowrap px-2 py-2 text-right text-xs font-semibold text-slate-300">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredTeachers.map((teacher) => (
                   <tr key={teacher.id} className="border-b border-slate-700 hover:bg-slate-700/50">
-                    <td className="px-6 py-3 font-mono text-sm text-blue-300">{teacher.teacherId}</td>
-                    <td className="px-6 py-3 text-white">{teacher.user.name}</td>
-                    <td className="px-6 py-3 text-slate-400">{teacher.user.email}</td>
-                    <td className="px-6 py-3 text-slate-400">
+                    <td className="whitespace-nowrap px-2 py-2 font-mono text-xs text-blue-300">{teacher.teacherId}</td>
+                    <td className="px-2 py-2 text-xs text-white">{teacher.user.name.trim().split(/\s+/)[0]}</td>
+                    <td className="px-2 py-2 text-xs text-white">{teacher.user.name.trim().split(/\s+/).slice(1).join(" ") || "-"}</td>
+                    <td className="break-all px-2 py-2 text-xs text-slate-400">{teacher.user.email}</td>
+                    <td className="whitespace-nowrap px-2 py-2 text-xs text-slate-400">
                       {new Date(teacher.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-3 text-right space-x-2">
+                    <td className="whitespace-nowrap px-2 py-2 text-right">
                       <button
                         onClick={() => handleEdit(teacher)}
-                        className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm"
+                        className="mr-1 rounded bg-indigo-600 px-2 py-1 text-xs text-white hover:bg-indigo-700"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(teacher.id)}
-                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
+                        className="rounded bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700"
                       >
                         Delete
                       </button>

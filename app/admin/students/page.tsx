@@ -214,10 +214,19 @@ export default function StudentsPage() {
         setBulkImportFile(null);
 
         if (result.created?.length > 0) {
-          const passwordSummary = result.created
-            .map((student: any) => `${student.name}: ${student.temporaryPassword}`)
-            .join("\n");
-          alert(`Temporary passwords for imported students:\n${passwordSummary}`);
+          const emailedCount = result.created.filter((student: any) => student.emailSent).length;
+          const emailFailures = result.created.filter((student: any) => !student.emailSent);
+          const notices: string[] = [];
+          if (emailedCount > 0) {
+            notices.push(`Temporary passwords emailed to ${emailedCount} student(s).`);
+          }
+          if (emailFailures.length > 0) {
+            const passwordSummary = emailFailures
+              .map((student: any) => `${student.name} (${student.email}): ${student.temporaryPassword}`)
+              .join("\n");
+            notices.push(`Some emails failed. Share these temporary passwords manually:\n${passwordSummary}`);
+          }
+          if (notices.length > 0) alert(notices.join("\n\n"));
         }
 
         setTimeout(() => {
@@ -257,7 +266,7 @@ export default function StudentsPage() {
             onClick={() => router.back()}
             className="mb-4 px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm"
           >
-            ← Back to Dashboard
+            ← Back
           </button>
           <h1 className="text-4xl font-bold text-white mb-2">Student Management</h1>
           <p className="text-slate-400">Manage students and enroll them in sections</p>
@@ -501,7 +510,7 @@ export default function StudentsPage() {
           <div className="mb-8 p-6 bg-slate-800 rounded-lg border border-slate-700">
             <h2 className="text-2xl font-bold text-white mb-4">Bulk Import Students</h2>
             <p className="text-slate-400 mb-6">
-              Upload a CSV or Excel file with columns: name, email, grade, section
+              Upload a CSV or Excel file with columns: firstName, lastName, email, grade, section. Legacy name, email files are also supported.
             </p>
 
             <form onSubmit={handleBulkImport} className="space-y-4">
@@ -519,9 +528,9 @@ export default function StudentsPage() {
               <div className="bg-slate-700/50 p-4 rounded-lg border border-slate-600">
                 <p className="text-sm text-slate-300 mb-3">CSV / Excel Format Example:</p>
                 <pre className="text-xs text-slate-400 overflow-x-auto">
-                  name,email,grade,section{"\n"}
-                  John Doe,john@school.edu,11,ABM-ARISTOTLE{"\n"}
-                  Jane Smith,jane@school.edu,12,HUMSS-AURELIUS
+                  firstName,lastName,email,grade,section{"\n"}
+                  John,Doe,john@school.edu,11,ABM-ARISTOTLE{"\n"}
+                  Jane,Smith,jane@school.edu,12,HUMSS-AURELIUS
                 </pre>
               </div>
 
@@ -562,7 +571,11 @@ export default function StudentsPage() {
                             <span className="font-mono text-green-400 font-medium">{student.studentId}</span>
                           </div>
                           <div className="text-xs text-slate-400">{student.email}</div>
-                          <div className="text-xs text-amber-300">Temporary password: <span className="font-mono text-amber-200">{student.temporaryPassword}</span></div>
+                          {student.emailSent ? (
+                            <div className="text-xs text-emerald-300">Temporary password emailed to this student.</div>
+                          ) : (
+                            <div className="text-xs text-amber-300">Email failed. Temporary password: <span className="font-mono text-amber-200">{student.temporaryPassword}</span></div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -591,45 +604,58 @@ export default function StudentsPage() {
         {/* Students Table */}
         <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full table-fixed">
+              <colgroup>
+                <col className="w-[16%]" />
+                <col className="w-[12%]" />
+                <col className="w-[12%]" />
+                <col className="w-[30%]" />
+                <col className="w-[8%]" />
+                <col className="w-[10%]" />
+                <col className="w-[12%]" />
+              </colgroup>
               <thead className="bg-slate-700 border-b border-slate-600">
                 <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Student ID</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Name</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Email</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Grade</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Section</th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Actions</th>
+                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Student ID</th>
+                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">First Name</th>
+                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Last Name</th>
+                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Email</th>
+                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Grade</th>
+                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Section</th>
+                  <th className="whitespace-nowrap px-2 py-2 text-right text-xs font-semibold text-slate-300">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700">
                 {filteredStudents.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
+                    <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
                       No students found
                     </td>
                   </tr>
                 ) : (
                   filteredStudents.map((student) => (
                     <tr key={student.id} className="hover:bg-slate-700/50 transition">
-                      <td className="px-6 py-4 text-sm text-white font-medium">{student.studentId}</td>
-                      <td className="px-6 py-4 text-sm text-slate-300">{student.name}</td>
-                      <td className="px-6 py-4 text-sm text-slate-300">{student.email}</td>
-                      <td className="px-6 py-4 text-sm text-slate-300">{student.gradeLevel}</td>
-                      <td className="px-6 py-4 text-sm text-slate-300">{student.section.name}</td>
-                      <td className="px-6 py-4 text-sm space-x-2">
-                        <button
-                          onClick={() => handleEdit(student)}
-                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(student.id)}
-                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-medium"
-                        >
-                          Delete
-                        </button>
+                      <td className="whitespace-nowrap px-2 py-3 text-xs font-medium text-white">{student.studentId}</td>
+                      <td className="px-2 py-3 text-xs text-slate-300">{student.name.trim().split(/\s+/)[0]}</td>
+                      <td className="px-2 py-3 text-xs text-slate-300">{student.name.trim().split(/\s+/).slice(1).join(" ") || "-"}</td>
+                      <td className="px-2 py-3 text-xs text-slate-300 break-all">{student.email}</td>
+                      <td className="whitespace-nowrap px-2 py-3 text-xs text-slate-300">{student.gradeLevel}</td>
+                      <td className="px-2 py-3 text-xs text-slate-300">{student.section.name}</td>
+                      <td className="whitespace-nowrap px-2 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleEdit(student)}
+                            className="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(student.id)}
+                            className="rounded bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

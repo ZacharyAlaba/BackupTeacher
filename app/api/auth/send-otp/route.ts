@@ -100,6 +100,7 @@ export async function POST(request: NextRequest) {
     // Generate OTP
     const otpCode = generateOTPCode();
     const expiryTime = getOTPExpiryTime();
+    const createdAt = new Date().toISOString();
 
     // Remove expired records, but keep recent codes because email delivery can
     // arrive out of order when a user requests OTP more than once.
@@ -109,6 +110,8 @@ export async function POST(request: NextRequest) {
       code: otpCode,
       attempts: 0,
       expiresAt: expiryTime.toISOString(),
+      createdAt,
+      updatedAt: createdAt,
     });
 
     if (insertError) {

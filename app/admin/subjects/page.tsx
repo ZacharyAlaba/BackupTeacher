@@ -88,7 +88,7 @@ export default function SubjectsPage() {
             onClick={() => router.back()}
             className="mb-4 px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm"
           >
-            ← Back to Dashboard
+            ← Back
           </button>
           <h1 className="text-4xl font-bold text-white mb-2">Subjects Management</h1>
           <p className="text-slate-400">Manage all subjects in the system</p>

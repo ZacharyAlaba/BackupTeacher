@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { sendTeacherCredentialsEmail } from "@/lib/otp-utils";
 
 async function generateTeacherId() {
   const year = new Date().getFullYear();
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
     const teachers = await prisma.teacher.findMany({
         select: {
           id: true,
+          teacherId: true,
           createdAt: true,
           user: { select: { name: true, email: true } },
           qualifications: { select: { subjectId: true } },
@@ -32,12 +34,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    const teachersWithDisplayIds = teachers.map((teacher) => ({
-      ...teacher,
-      teacherId: `T-${teacher.id.slice(-6).toUpperCase()}`,
-    }));
-
-    return NextResponse.json(teachersWithDisplayIds);
+    return NextResponse.json(teachers);
   } catch (error) {
     console.error("Teachers fetch error:", error);
     return NextResponse.json({ error: "Failed to fetch teachers" }, { status: 500 });
@@ -82,9 +79,21 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    let emailSent = false;
+    let emailError: string | undefined;
+    try {
+      await sendTeacherCredentialsEmail(fullName, email, password);
+      emailSent = true;
+    } catch (error) {
+      emailError = error instanceof Error ? error.message : "Failed to send credentials email.";
+      console.error(`Failed to email temporary credentials for teacher ${email}:`, error);
+    }
+
     return NextResponse.json(
       {
         ...teacher,
+        emailSent,
+        ...(emailError ? { emailError } : {}),
         user: {
           name: user.name,
           email: user.email,

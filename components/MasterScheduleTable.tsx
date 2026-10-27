@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface TimeSlot {
   id: string;
@@ -44,17 +45,27 @@ interface Subject {
   track?: string | null;
 }
 
+interface RoomItem {
+  id: string;
+  name: string;
+  sectionId: string;
+}
+
 export default function MasterScheduleTable({ onSchedulesUpdate }: MasterScheduleTableProps) {
   const [schedules, setSchedules] = useState<ScheduleBlock[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [selectedGrade, setSelectedGrade] = useState("G11");
   const [selectedSectionIndex, setSelectedSectionIndex] = useState(0);
+  const [showSectionMenu, setShowSectionMenu] = useState(false);
   const [loading, setLoading] = useState(true);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [rooms, setRooms] = useState<RoomItem[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ sectionId: string; timeSlotId: string } | null>(null);
+  const [modalAssignmentLock, setModalAssignmentLock] = useState<{ teacherId: string; subjectId: string } | null>(null);
+  const [subjectReadOnly, setSubjectReadOnly] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
   const [prefillLabel, setPrefillLabel] = useState("");
@@ -63,12 +74,13 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
 
   const loadData = useCallback(async () => {
     try {
-      const [schedulesRes, sectionsRes, timeSlotsRes, teachersRes, subjectsRes] = await Promise.all([
+      const [schedulesRes, sectionsRes, timeSlotsRes, teachersRes, subjectsRes, roomsRes] = await Promise.all([
         fetch("/api/admin/schedules", { cache: "no-store" }),
         fetch("/api/admin/sections", { cache: "no-store" }),
         fetch("/api/admin/time-slots", { cache: "no-store" }),
         fetch("/api/admin/teachers", { cache: "no-store" }),
         fetch("/api/admin/subjects", { cache: "no-store" }),
+        fetch("/api/admin/rooms", { cache: "no-store" }),
       ]);
 
       if (schedulesRes.ok) {
@@ -80,6 +92,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
       if (timeSlotsRes.ok) setTimeSlots(await timeSlotsRes.json());
       if (teachersRes.ok) setTeachers(await teachersRes.json());
       if (subjectsRes.ok) setSubjects(await subjectsRes.json());
+      if (roomsRes.ok) setRooms(await roomsRes.json());
     } catch (error) {
       console.error("Failed to load data:", error);
     } finally {
@@ -121,6 +134,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
 
   useEffect(() => {
     setSelectedSectionIndex(0);
+    setShowSectionMenu(false);
   }, [selectedGrade]);
 
   const currentSection = gradeSections[selectedSectionIndex] || gradeSections[0];
@@ -959,30 +973,47 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
 
   function openAssignModal(sectionId: string, timeSlotId: string, subjectId?: string, label?: string) {
     const existingSchedule = getScheduleForSlot(sectionId, timeSlotId);
-    if (existingSchedule) {
-      setError("This slot is already assigned. Delete first to reassign.");
-      return;
-    }
+
     setSelectedSlot({ sectionId, timeSlotId });
     setShowModal(true);
     setError("");
     setSuccess("");
+    setSubjectReadOnly(Boolean(existingSchedule || label));
+
+    if (existingSchedule) {
+      setModalAssignmentLock({
+        teacherId: existingSchedule.teacher.id,
+        subjectId: existingSchedule.subject.id,
+      });
+      setSelectedTeacher(existingSchedule.teacher.id);
+      setSelectedSubject(existingSchedule.subject.id);
+      setPrefillLabel(existingSchedule.subject.name);
+      return;
+    }
+
+    setModalAssignmentLock(null);
     setSelectedTeacher("");
     setPrefillLabel(label || "");
-    
+
     // Try to find subject ID
     let finalSubjectId = subjectId;
     if (!finalSubjectId && label) {
       // Retry with the label if subjectId wasn't found
       finalSubjectId = findSubjectIdForPrefill(label, selectedSection?.gradeLevel);
     }
-    
+
     setSelectedSubject(finalSubjectId || "");
   }
 
   const selectedSection = selectedSlot
     ? sections.find((section) => section.id === selectedSlot.sectionId) || null
     : null;
+
+  const currentSlotSchedule = selectedSlot
+    ? getScheduleForSlot(selectedSlot.sectionId, selectedSlot.timeSlotId)
+    : null;
+
+  const isLockedAssignment = Boolean(currentSlotSchedule) || Boolean(modalAssignmentLock);
 
   const availableSubjects = selectedSection
     ? subjects.filter((subject) => {
@@ -995,8 +1026,14 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     : subjects.filter((subject) => subject.gradeLevel === selectedGrade);
 
   const availableTeachers = teachers;
+  const availableRooms = rooms.filter((room) => room.sectionId === selectedSlot?.sectionId);
 
   async function handleAssign() {
+    if (isLockedAssignment) {
+      setError("This assignment is already locked. Delete it first if you want to reassign a different subject.");
+      return;
+    }
+
     if (!selectedSlot || !selectedTeacher) {
       setError("Please select a teacher");
       return;
@@ -1008,6 +1045,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
     }
 
     try {
+      const sectionRoom = availableRooms[0] || null;
       const matchingSlotIds = timeSlots
         .filter((timeSlot) => {
           const prefill = getImagePrefill(
@@ -1037,7 +1075,8 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
           subjectId: selectedSubject,
           sectionId: selectedSlot.sectionId,
           timeSlotIds: matchingSlotIds,
-          room: null,
+          roomId: sectionRoom?.id || null,
+          room: sectionRoom?.name || null,
           overrideRules: true,
           overrideReason: "Admin schedule builder assignment",
         }),
@@ -1068,7 +1107,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
   }
 
   async function handleDelete(scheduleId: string) {
-    if (!confirm("Remove this assignment?")) return;
+    if (!confirm("Remove this teacher assignment?")) return;
 
     try {
       const selectedSchedule = schedules.find((schedule) => schedule.id === scheduleId);
@@ -1089,7 +1128,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
       );
 
       if (responses.every((response) => response.ok)) {
-        setSuccess(`Removed ${schedulesToDelete.length} assignment(s)`);
+        setSuccess(`Removed ${schedulesToDelete.length} teacher assignment(s)`);
         loadData();
       } else {
         setError("Failed to remove assignment");
@@ -1105,9 +1144,9 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
   }
 
   return (
-    <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-6 rounded-xl">
+    <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-3 md:p-4 rounded-xl">
       {/* Grade and section navigation */}
-      <div className="mb-6 space-y-4">
+      <div className="mb-4 space-y-3">
         <div className="flex flex-wrap items-center gap-4">
         <span className="text-sm font-semibold text-slate-300">Grade Level:</span>
         <div className="flex gap-2">
@@ -1141,40 +1180,59 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => setSelectedSectionIndex(Math.max(0, selectedSectionIndex - 1))}
+              onClick={() => {
+                setSelectedSectionIndex(Math.max(0, selectedSectionIndex - 1));
+                setShowSectionMenu(false);
+              }}
               disabled={selectedSectionIndex === 0}
-              className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Previous section"
+              title="Previous section"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-700 text-slate-200 transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Previous
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
-            <div className="group relative">
+            <div className="relative">
               <button
                 type="button"
-                className="rounded-lg border border-indigo-400 bg-indigo-600 px-4 py-2 text-sm font-semibold text-white"
-                title="Hover over a section to preview it"
+                onClick={() => setShowSectionMenu((open) => !open)}
+                aria-expanded={showSectionMenu}
+                aria-controls="section-picker-options"
+                title="Choose section"
+                className="flex items-center gap-2 rounded-lg border border-indigo-400 bg-indigo-600 px-4 py-2 text-sm font-semibold text-white"
               >
                 {currentSection?.name} ({selectedSectionIndex + 1}/{gradeSections.length})
+                <ChevronDown className={`h-4 w-4 transition-transform ${showSectionMenu ? "rotate-180" : ""}`} aria-hidden="true" />
               </button>
-              <div className="invisible absolute left-0 top-full z-30 mt-2 min-w-52 rounded-lg border border-slate-600 bg-slate-900 p-2 opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100">
+              {showSectionMenu && (
+              <div id="section-picker-options" className="absolute left-0 top-full z-30 mt-2 min-w-52 rounded-lg border border-slate-600 bg-slate-900 p-2 shadow-xl">
                 {gradeSections.map((section, index) => (
                   <button
                     key={section.id}
                     type="button"
-                    onClick={() => setSelectedSectionIndex(index)}
+                    onClick={() => {
+                      setSelectedSectionIndex(index);
+                      setShowSectionMenu(false);
+                    }}
                     className={`block w-full rounded px-3 py-2 text-left text-sm transition hover:bg-slate-700 ${index === selectedSectionIndex ? "bg-slate-700 text-white" : "text-slate-300"}`}
                   >
                     {section.name} <span className="text-xs text-slate-500">({section.track})</span>
                   </button>
                 ))}
               </div>
+              )}
             </div>
             <button
               type="button"
-              onClick={() => setSelectedSectionIndex(Math.min(gradeSections.length - 1, selectedSectionIndex + 1))}
+              onClick={() => {
+                setSelectedSectionIndex(Math.min(gradeSections.length - 1, selectedSectionIndex + 1));
+                setShowSectionMenu(false);
+              }}
               disabled={selectedSectionIndex >= gradeSections.length - 1}
-              className="rounded-lg bg-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Next section"
+              title="Next section"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-700 text-slate-200 transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Next
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         )}
@@ -1187,7 +1245,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
           <thead>
             <tr className="bg-slate-900 border-b border-slate-700">
               {/* Time column */}
-              <th className="w-28 border border-slate-700 px-2 py-3 text-left text-xs font-bold text-slate-300 bg-slate-950 sticky left-0 z-20">
+              <th className="w-28 border border-slate-700 px-2 py-2 text-left text-xs font-bold text-slate-300 bg-slate-950 sticky left-0 z-20">
                 TIME
               </th>
 
@@ -1196,7 +1254,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                 <th
                   key={section.id}
                   colSpan={5}
-                  className={`border border-slate-700 px-3 py-3 text-center text-sm font-bold text-white bg-slate-800 ${
+                  className={`border border-slate-700 px-3 py-2 text-center text-sm font-bold text-white bg-slate-800 ${
                     sectionIndex > 0 ? "border-l-4 border-l-indigo-500/70" : ""
                   }`}
                 >
@@ -1214,7 +1272,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                   {uniqueDays.map((day, dayIndex) => (
                     <th
                       key={`${section.id}-${day}`}
-                      className={`border border-slate-700 px-2 py-3 text-center text-xs font-semibold text-slate-300 ${
+                      className={`border border-slate-700 px-2 py-2 text-center text-xs font-semibold text-slate-300 ${
                         sectionIndex > 0 && dayIndex === 0 ? "border-l-4 border-l-indigo-500/70" : ""
                       }`}
                     >
@@ -1230,7 +1288,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
             {rowTimeSlots.map((timeSlot, rowIndex) => (
               <tr key={timeSlot.id} className="border-b border-slate-700 hover:bg-slate-700/30">
                 {/* Time cell */}
-                <td className={`border border-slate-700 px-2 py-3 text-xs font-bold text-slate-200 bg-slate-950 sticky left-0 z-10 whitespace-nowrap ${
+                <td className={`border border-slate-700 px-2 py-1.5 text-[10px] font-bold text-slate-200 bg-slate-950 sticky left-0 z-10 whitespace-nowrap ${
                   rowIndex % 2 === 0 ? "bg-slate-950" : "bg-slate-900"
                 }`}>
                   <div className="text-xs leading-none">
@@ -1244,7 +1302,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                     {fixedBreakStartTimes.has(timeSlot.startTime) ? (
                       <td
                         colSpan={uniqueDays.length}
-                        className="border border-slate-700 px-2 py-2 text-center text-xs font-semibold text-slate-950 bg-pink-300"
+                        className="border border-slate-700 px-2 py-1.5 text-center text-[10px] font-semibold text-slate-950 bg-pink-300"
                       >
                         {timeSlot.startTime === "09:45" ? "RECESS" : "LUNCH BREAK"}
                       </td>
@@ -1255,16 +1313,6 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                         ts => ts.day === day && ts.startTime === timeSlot.startTime
                       );
                       const schedule = slot ? getScheduleForSlot(section.id, slot.id) : null;
-
-                      // compute available subjects for this section
-                      const sectionSubjects = subjects.filter((s) => {
-                        const matchesGrade = s.gradeLevel === section.gradeLevel;
-                        const track = s.track?.trim();
-                        const sectionTrack = section.track?.trim();
-                        const matchesTrack = !track || track === sectionTrack;
-                        return matchesGrade && matchesTrack;
-                      });
-
                       const prefill = slot ? getImagePrefill(section.scheduleKey || section.name, day, slot.startTime) : null;
                       const slotAllowed = slot && isSlotAllowedForSection(section.scheduleKey || section.name, slot);
                       const isBreakSlot = prefill?.disableClick === true;
@@ -1272,7 +1320,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                       return (
                         <td
                           key={`${section.id}-${day}-${timeSlot.id}`}
-                          className={`border border-slate-700 px-1 py-1 text-[10px] align-top h-20 ${
+                          className={`border border-slate-700 px-1 py-1 text-[10px] align-top h-12 ${
                             sectionIndex > 0 && dayIndex === 0 ? "border-l-4 border-l-indigo-500/70" : ""
                           } ${
                             schedule
@@ -1283,31 +1331,37 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                               ? "bg-slate-800/50 hover:bg-slate-700/50 cursor-pointer"
                               : "bg-slate-800/70 hover:bg-slate-700/60 cursor-pointer"
                           }`}
-                          onClick={() => slot && !schedule && slotAllowed && !isBreakSlot && openAssignModal(section.id, slot.id)}
+                          onClick={() => {
+                            if (!slot || schedule || !slotAllowed || isBreakSlot) return;
+                            openAssignModal(section.id, slot.id);
+                          }}
                         >
                           {schedule ? (
                             isNeutralSection(section.name) ? (
-                              <div className="rounded bg-slate-800/60 border border-slate-600 p-2 h-full overflow-hidden flex flex-col justify-center items-center text-slate-300 text-[11px]">
-                                <div className="font-semibold">{getSubjectDisplayLabel(schedule.subject.name)}</div>
-                                <div className="text-[10px] text-slate-400 mt-1">{schedule.teacher.user.name}</div>
+                              <div className="rounded bg-slate-800/60 border border-slate-600 p-1 h-full overflow-hidden flex flex-col justify-center items-center text-slate-300 text-[9px] cursor-default">
+                                <div className="font-semibold">{schedule.subject.name}</div>
+                                <div className="text-[9px] text-slate-400 mt-0.5">{schedule.teacher.user.name}</div>
                                 <button
+                                  type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleDelete(schedule.id);
                                   }}
-                                  className="text-[10px] px-2 py-1 bg-red-500/30 hover:bg-red-500/50 text-red-200 border border-red-400/30 rounded transition mt-2"
+                                  aria-label="Remove teacher assignment"
+                                  title="Remove teacher assignment"
+                                  className="text-[9px] px-1.5 py-0.5 bg-red-500/30 hover:bg-red-500/50 text-red-200 border border-red-400/30 rounded transition mt-1"
                                 >
-                                  Remove
+                                  Remove teacher
                                 </button>
                               </div>
                             ) : (
-                              <div className={`rounded border p-2 h-full overflow-hidden flex flex-col justify-between ${getSubjectColor(schedule.subject.name)}`}>
+                              <div className={`rounded border p-1 h-full overflow-hidden flex flex-col justify-between cursor-default ${getSubjectColor(schedule.subject.name)}`}>
                                 <div>
                                   <div className="font-bold text-current text-[10px] leading-tight">
                                     {schedule.teacher.user.name}
                                   </div>
-                                  <div className="text-current text-[11px] leading-tight mt-1">
-                                    {getSubjectDisplayLabel(schedule.subject.name)}
+                                  <div className="text-current text-[10px] leading-tight mt-0.5">
+                                    {schedule.subject.name}
                                   </div>
                                   {schedule.room && (
                                     <div className="text-current text-[10px] mt-1 opacity-75">
@@ -1316,34 +1370,38 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                                   )}
                                 </div>
                                 <button
+                                  type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleDelete(schedule.id);
                                   }}
-                                  className="text-[10px] px-2 py-1 bg-red-500/30 hover:bg-red-500/50 text-red-200 border border-red-400/30 rounded transition mt-2"
+                                  aria-label="Remove teacher assignment"
+                                  title="Remove teacher assignment"
+                                  className="text-[9px] px-1.5 py-0.5 bg-red-500/30 hover:bg-red-500/50 text-red-200 border border-red-400/30 rounded transition mt-1"
                                 >
-                                  Remove
+                                  Remove teacher
                                 </button>
                               </div>
                             )
                           ) : prefill ? (
                             prefill.disableClick ? (
                               <div
-                                className={`w-full h-full rounded ${prefill.bg || "bg-slate-600"} ${prefill.textColor || "text-white"} p-2 flex items-center justify-center text-[12px] font-semibold text-center leading-tight cursor-default`}
+                                className={`w-full h-full rounded ${prefill.bg || "bg-slate-600"} ${prefill.textColor || "text-white"} p-1 flex items-center justify-center text-[10px] font-semibold text-center leading-tight cursor-default`}
                               >
                                 {getCurrentPrefillLabel(prefill.label, section.gradeLevel)}
                               </div>
                             ) : (
                               <button
+                                type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (!slot) return;
-                                  const prefillSubjectId = findSubjectIdForPrefill(prefill.label, section.gradeLevel);
-                                  openAssignModal(section.id, slot.id, prefillSubjectId, prefill.label);
+                                  const subjectId = findSubjectIdForPrefill(prefill.label, section.gradeLevel);
+                                  openAssignModal(section.id, slot.id, subjectId, prefill.label);
                                 }}
-                                className={`w-full h-full rounded ${prefill.bg || "bg-slate-600"} ${prefill.textColor || "text-white"} p-2 flex items-center justify-center text-[12px] font-semibold text-center leading-tight`}
+                                className={`w-full h-full rounded ${prefill.bg || "bg-slate-600"} ${prefill.textColor || "text-white"} p-1 flex items-center justify-center text-[10px] font-semibold text-center leading-tight`}
                               >
-                                  {getCurrentPrefillLabel(prefill.label, section.gradeLevel)}
+                                {getCurrentPrefillLabel(prefill.label, section.gradeLevel)}
                               </button>
                             )
                           ) : slotAllowed ? (
@@ -1407,6 +1465,8 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                 onClick={() => {
                   setShowModal(false);
                   setSelectedSlot(null);
+                  setModalAssignmentLock(null);
+                  setSubjectReadOnly(false);
                   setSelectedSubject("");
                   setSelectedTeacher("");
                   setPrefillLabel("");
@@ -1429,31 +1489,64 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">Subject</label>
-                <div className="px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 text-sm">
-                  {selectedSubject ? (
-                    subjects.find((s) => s.id === selectedSubject)?.name || "Unknown"
-                  ) : prefillLabel ? (
-                    <span className="text-slate-400">{prefillLabel} (lookup failed)</span>
-                  ) : (
-                    <span className="text-slate-400">No subject assigned to this slot</span>
-                  )}
-                </div>
+                {isLockedAssignment || subjectReadOnly ? (
+                  <div className="px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 text-sm">
+                    {selectedSubject ? (
+                      subjects.find((s) => s.id === selectedSubject)?.name || currentSlotSchedule?.subject.name || prefillLabel || "Unknown"
+                    ) : (
+                      <span className="text-slate-400">{currentSlotSchedule?.subject.name || prefillLabel || "Subject locked"}</span>
+                    )}
+                  </div>
+                ) : availableSubjects.length > 0 ? (
+                  <select
+                    value={selectedSubject}
+                    onChange={(e) => setSelectedSubject(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Select subject...</option>
+                    {availableSubjects.map((subject) => (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 text-sm">
+                    {selectedSubject ? (
+                      subjects.find((s) => s.id === selectedSubject)?.name || "Unknown"
+                    ) : prefillLabel ? (
+                      <span className="text-slate-400">{prefillLabel} (lookup failed)</span>
+                    ) : (
+                      <span className="text-slate-400">No subject assigned to this slot</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">Teacher</label>
-                <select
-                  value={selectedTeacher}
-                  onChange={(e) => setSelectedTeacher(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Select teacher...</option>
-                  {availableTeachers.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.user.name}
-                    </option>
-                  ))}
-                </select>
+                {isLockedAssignment ? (
+                  <div className="px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-slate-200 text-sm">
+                    {selectedTeacher ? (
+                      availableTeachers.find((teacher) => teacher.id === selectedTeacher)?.user.name || currentSlotSchedule?.teacher.user.name || "Unknown teacher"
+                    ) : (
+                      <span className="text-slate-400">{currentSlotSchedule?.teacher.user.name || "Teacher locked"}</span>
+                    )}
+                  </div>
+                ) : (
+                  <select
+                    value={selectedTeacher}
+                    onChange={(e) => setSelectedTeacher(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Select teacher...</option>
+                    {availableTeachers.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.user.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="flex gap-3 pt-4">
@@ -1461,6 +1554,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                   onClick={() => {
                     setShowModal(false);
                     setSelectedSlot(null);
+                    setModalAssignmentLock(null);
                     setSelectedSubject("");
                     setSelectedTeacher("");
                     setPrefillLabel("");
@@ -1472,9 +1566,14 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                 </button>
                 <button
                   onClick={handleAssign}
-                  className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition"
+                  disabled={isLockedAssignment}
+                  className={`flex-1 px-4 py-2 rounded-lg font-medium transition ${
+                    isLockedAssignment
+                      ? "bg-slate-600 text-slate-300 cursor-not-allowed"
+                      : "bg-indigo-600 hover:bg-indigo-700 text-white"
+                  }`}
                 >
-                  Assign
+                  {isLockedAssignment ? "Locked" : "Assign"}
                 </button>
               </div>
             </div>

@@ -5,6 +5,8 @@ import bcrypt from "bcryptjs";
 import * as XLSX from "xlsx";
 import { parse } from "csv-parse/sync";
 import { generateTeacherId } from "@/lib/teacherIdGenerator";
+import { randomInt } from "node:crypto";
+import { sendTeacherCredentialsEmail } from "@/lib/otp-utils";
 
 async function parseImportRows(file: File): Promise<string[][]> {
   const extension = file.name.split(".").pop()?.toLowerCase();
@@ -32,16 +34,20 @@ async function parseImportRows(file: File): Promise<string[][]> {
   throw new Error("Only CSV and Excel files are supported");
 }
 
-function generateTemporaryPassword(name: string) {
-  const base = name.trim().replace(/\s+/g, "").toLowerCase();
-  return `${base}2026`;
+function generateTemporaryPassword(firstName: string, usedPasswords: Set<string>) {
+  let temporaryPassword = "";
+  do {
+    temporaryPassword = `${firstName.trim().toLowerCase()}${randomInt(1000, 10000)}`;
+  } while (usedPasswords.has(temporaryPassword));
+  usedPasswords.add(temporaryPassword);
+  return temporaryPassword;
 }
 
 interface ImportResult {
   success: number;
   failed: number;
   errors: Array<{ row: number; name: string; error: string }>;
-  created: Array<{ name: string; email: string; temporaryPassword: string }>;
+  created: Array<{ name: string; email: string; temporaryPassword: string; emailSent: boolean; emailError?: string }>;
 }
 
 export async function POST(request: Request) {
@@ -72,15 +78,22 @@ export async function POST(request: Request) {
 
     const headers = rows[0].map((h) => h.trim().toLowerCase());
     const nameIndex = headers.indexOf("name");
+    const firstNameIndex = headers.indexOf("firstname");
+    const lastNameIndex = headers.indexOf("lastname");
+    const hasSplitNameColumns = firstNameIndex !== -1 || lastNameIndex !== -1;
     const emailIndex = headers.indexOf("email");
     const dateOfBirthIndex = headers.indexOf("dateofbirth");
     const genderIndex = headers.indexOf("gender");
     const phoneIndex = headers.indexOf("phone");
     const addressIndex = headers.indexOf("address");
 
-    if (nameIndex === -1 || emailIndex === -1) {
+    if (
+      emailIndex === -1 ||
+      (hasSplitNameColumns && (firstNameIndex === -1 || lastNameIndex === -1)) ||
+      (!hasSplitNameColumns && nameIndex === -1)
+    ) {
       return new Response(
-        JSON.stringify({ error: "CSV must have columns: name, email" }),
+        JSON.stringify({ error: "CSV must have columns: firstName, lastName, email (legacy name, email is also supported)" }),
         { status: 400 }
       );
     }
@@ -91,6 +104,7 @@ export async function POST(request: Request) {
       errors: [],
       created: [],
     };
+    const usedTemporaryPasswords = new Set<string>();
 
     for (let i = 1; i < rows.length; i++) {
       const row = i + 1;
@@ -98,7 +112,11 @@ export async function POST(request: Request) {
 
       if (values.length < 2) continue;
 
-      const name = values[nameIndex];
+      const legacyName = nameIndex !== -1 ? values[nameIndex] : "";
+      const legacyNameParts = legacyName.trim().split(/\s+/);
+      const firstName = hasSplitNameColumns ? values[firstNameIndex] : legacyNameParts[0];
+      const lastName = hasSplitNameColumns ? values[lastNameIndex] : legacyNameParts.slice(1).join(" ");
+      const name = `${firstName || ""} ${lastName || ""}`.trim();
       const email = values[emailIndex];
       const dateOfBirth = dateOfBirthIndex !== -1 ? values[dateOfBirthIndex] : "";
       const gender = genderIndex !== -1 ? values[genderIndex] : "";
@@ -106,8 +124,8 @@ export async function POST(request: Request) {
       const address = addressIndex !== -1 ? values[addressIndex] : "";
 
       try {
-        if (!name || !email) {
-          throw new Error("Name and email are required");
+        if (!firstName || !email || (hasSplitNameColumns && !lastName)) {
+          throw new Error("First name, last name, and email are required");
         }
 
         if (!email.includes("@")) {
@@ -147,13 +165,15 @@ export async function POST(request: Request) {
           result.created.push({
             name: existingUser.name,
             email,
-            temporaryPassword: generateTemporaryPassword(existingUser.name),
+            temporaryPassword: "",
+            emailSent: false,
+            emailError: "This existing account was linked without changing its password.",
           });
           result.success++;
           continue;
         }
 
-        const temporaryPassword = generateTemporaryPassword(name);
+        const temporaryPassword = generateTemporaryPassword(firstName, usedTemporaryPasswords);
         const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
 
         const user = await prisma.user.create({
@@ -173,7 +193,17 @@ export async function POST(request: Request) {
           },
         });
 
-        result.created.push({ name, email, temporaryPassword });
+        let emailSent = false;
+        let emailError: string | undefined;
+        try {
+          await sendTeacherCredentialsEmail(name, email, temporaryPassword);
+          emailSent = true;
+        } catch (error) {
+          emailError = error instanceof Error ? error.message : "Failed to send credentials email.";
+          console.error(`Failed to email temporary credentials for imported teacher ${email}:`, error);
+        }
+
+        result.created.push({ name, email, temporaryPassword, emailSent, emailError });
         result.success++;
       } catch (error) {
         result.failed++;

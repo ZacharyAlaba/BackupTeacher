@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useTeacherTheme } from "@/lib/useTeacherTheme";
+import { splitFullName } from "@/lib/splitFullName";
 
 type ScheduleItem = {
   day: string;
@@ -131,13 +132,14 @@ export default function TeacherDashboard() {
     });
 
     autoTable(doc, {
-      startY: 36,
+      startY: 32,
       head,
       body,
       theme: "grid",
       styles: {
         fontSize: 8.5,
-        cellPadding: 3,
+        cellPadding: 2,
+        minCellHeight: 11,
         valign: "middle",
         halign: "center",
         lineColor: [203, 213, 225],
@@ -156,6 +158,8 @@ export default function TeacherDashboard() {
       columnStyles: {
         0: { cellWidth: 30, fontStyle: "bold", fillColor: [226, 232, 240] },
       },
+      margin: { top: 32, right: 10, bottom: 14, left: 10 },
+      rowPageBreak: "avoid",
       didParseCell: (data) => {
         if (data.section === "body" && data.column.index > 0) {
           const text = String(data.cell.raw ?? "").toUpperCase();
@@ -335,7 +339,7 @@ export default function TeacherDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-slate-100 light:bg-none light:from-transparent light:via-transparent light:to-transparent light:bg-slate-100 light:text-slate-900">
       <div className="w-full px-4 py-6 md:px-6 xl:px-8">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[256px_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 gap-4 lg:pl-44">
           <TeacherSidebar
             teacherName={teacherProfile?.name || session?.user?.name || "Teacher"}
             theme={theme}
@@ -345,13 +349,13 @@ export default function TeacherDashboard() {
           />
 
           <div className="min-w-0">
-            <header className="rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
-          <div className="flex flex-col gap-5">
+            <header className="rounded-2xl border border-slate-700 bg-slate-900 p-4 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
+          <div className="flex flex-col gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 light:text-slate-500">
                 Libertad NHS Senior High
               </p>
-              <h1 className="mt-1 text-3xl font-semibold text-white light:text-slate-900">Teacher Dashboard</h1>
+              <h1 className="mt-1 text-2xl font-semibold text-white light:text-slate-900">Teacher Dashboard</h1>
               <p className="mt-1 text-slate-300 light:text-slate-600">Welcome, {teacherProfile?.name || session?.user?.name || "Teacher"}</p>
               <p className="mt-1 text-xs text-slate-500 light:text-slate-400">
                 Data source: {source === "loading" ? "loading..." : source}
@@ -361,31 +365,31 @@ export default function TeacherDashboard() {
             </header>
 
         <section className="mt-4 grid gap-4 lg:grid-cols-3">
-          <article className="rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
+          <article className="rounded-2xl border border-slate-700 bg-slate-800 p-4 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 light:text-slate-500">Today</p>
-            <h2 className="mt-2 text-lg font-semibold text-white light:text-slate-900">{today} Classes</h2>
-            <p className="mt-2 text-3xl font-semibold text-indigo-300 light:text-indigo-600">{todayClasses.length}</p>
+            <h2 className="mt-1 text-base font-semibold text-white light:text-slate-900">{today} Classes</h2>
+            <p className="mt-1 text-2xl font-semibold text-indigo-300 light:text-indigo-600">{todayClasses.length}</p>
           </article>
 
-          <article className="rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
+          <article className="rounded-2xl border border-slate-700 bg-slate-800 p-4 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 light:text-slate-500">This Week</p>
-            <h2 className="mt-2 text-lg font-semibold text-white light:text-slate-900">Total Class Blocks</h2>
-            <p className="mt-2 text-3xl font-semibold text-indigo-300 light:text-indigo-600">{realClassCount}</p>
+            <h2 className="mt-1 text-base font-semibold text-white light:text-slate-900">Total Class Blocks</h2>
+            <p className="mt-1 text-2xl font-semibold text-indigo-300 light:text-indigo-600">{realClassCount}</p>
           </article>
 
-          <article className="rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
+          <article className="rounded-2xl border border-slate-700 bg-slate-800 p-4 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 light:text-slate-500">Quick Guide</p>
-            <h2 className="mt-2 text-lg font-semibold text-white light:text-slate-900">How to use</h2>
-            <ul className="mt-2 space-y-1 text-sm text-slate-300 light:text-slate-600">
+            <h2 className="mt-1 text-base font-semibold text-white light:text-slate-900">How to use</h2>
+            <ul className="mt-1 space-y-1 text-xs text-slate-300 light:text-slate-600">
               <li>• Check today’s classes first.</li>
-              <li>• Review your weekly timetable below.</li>
+              <li>• Review your schedule below.</li>
               <li>• Report conflicts to admin immediately.</li>
             </ul>
           </article>
         </section>
 
-        <section id="weekly-timetable" className="mt-4 rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
-          <h2 className="text-xl font-semibold text-white light:text-slate-900">Today&apos;s Class Details</h2>
+        <section id="weekly-timetable" className="mt-4 rounded-2xl border border-slate-700 bg-slate-900 p-4 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
+          <h2 className="text-lg font-semibold text-white light:text-slate-900">Today&apos;s Class Details</h2>
           {todayClasses.length === 0 ? (
             <p className="mt-3 text-sm text-slate-400 light:text-slate-500">No classes scheduled for today.</p>
           ) : (
@@ -393,19 +397,19 @@ export default function TeacherDashboard() {
               <table className="min-w-full divide-y divide-slate-700 text-sm light:divide-slate-200">
                 <thead className="bg-slate-800 light:bg-slate-100">
                   <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-300 light:text-slate-600">Time</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-300 light:text-slate-600">Subject</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-300 light:text-slate-600">Section</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-300 light:text-slate-600">Room</th>
+                    <th className="px-3 py-2 text-left font-semibold text-slate-300 light:text-slate-600">Time</th>
+                    <th className="px-3 py-2 text-left font-semibold text-slate-300 light:text-slate-600">Subject</th>
+                    <th className="px-3 py-2 text-left font-semibold text-slate-300 light:text-slate-600">Section</th>
+                    <th className="px-3 py-2 text-left font-semibold text-slate-300 light:text-slate-600">Room</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700 bg-slate-950 light:divide-slate-200 light:bg-white">
                   {todayClasses.map((item) => (
                     <tr key={`${item.day}-${item.timeSlot}-${item.subject}`} className="odd:bg-slate-900 even:bg-slate-950 light:odd:bg-white light:even:bg-slate-50">
-                      <td className="px-4 py-3 text-slate-300 light:text-slate-600">{item.timeSlot}</td>
-                      <td className="px-4 py-3 text-white font-medium light:text-slate-900">{item.subject}</td>
-                      <td className="px-4 py-3 text-slate-300 light:text-slate-600">{item.section}</td>
-                      <td className="px-4 py-3 text-slate-300 light:text-slate-600">{item.room || "-"}</td>
+                      <td className="px-3 py-2 text-slate-300 light:text-slate-600">{item.timeSlot}</td>
+                      <td className="px-3 py-2 text-white font-medium light:text-slate-900">{item.subject}</td>
+                      <td className="px-3 py-2 text-slate-300 light:text-slate-600">{item.section}</td>
+                      <td className="px-3 py-2 text-slate-300 light:text-slate-600">{item.room || "-"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -414,9 +418,9 @@ export default function TeacherDashboard() {
           )}
         </section>
 
-        <section className="mt-4 rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
+        <section className="mt-4 rounded-2xl border border-slate-700 bg-slate-900 p-4 shadow-xl shadow-slate-950/10 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <h2 className="text-xl font-semibold text-white light:text-slate-900">Weekly Timetable</h2>
+            <h2 className="text-xl font-semibold text-white light:text-slate-900">Schedule Timetable</h2>
             <button
               onClick={downloadTimetablePdf}
               className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
@@ -424,13 +428,13 @@ export default function TeacherDashboard() {
               Download PDF
             </button>
           </div>
-          <Timetable schedule={schedule} timeSlots={timeSlots} />
+          <Timetable schedule={schedule} timeSlots={timeSlots} compact />
         </section>
 
         {/* My Profile Modal */}
         {showProfileModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-800 border border-slate-700 rounded-xl p-8 max-w-lg w-full shadow-lg light:bg-white light:border-slate-200">
+          <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
+            <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-700 bg-slate-800 p-5 shadow-lg light:border-slate-200 light:bg-white sm:p-6">
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300 light:text-indigo-600">Teacher account</p>
@@ -460,9 +464,16 @@ export default function TeacherDashboard() {
 
               {!profileEditing ? (
                 <div className="space-y-3">
-                  <div className="rounded-lg border border-slate-600 bg-slate-700/50 p-4 light:border-slate-200 light:bg-slate-100">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 light:text-slate-500">Name</p>
-                    <p className="mt-1 text-lg font-semibold text-white light:text-slate-900">{teacherProfile?.name || "Teacher"}</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {[
+                      ["First Name", splitFullName(teacherProfile?.name || "Teacher").firstName],
+                      ["Last Name", splitFullName(teacherProfile?.name || "Teacher").lastName],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-lg border border-slate-600 bg-slate-700/50 p-3 light:border-slate-200 light:bg-slate-100">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 light:text-slate-500">{label}</p>
+                        <p className="mt-1 break-words text-sm font-semibold text-white light:text-slate-900">{value || "Not provided"}</p>
+                      </div>
+                    ))}
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {[

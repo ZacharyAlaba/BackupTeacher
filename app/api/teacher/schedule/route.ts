@@ -705,14 +705,8 @@ async function buildFallbackStudentSchedule(student: { section: { name: string; 
         startTime: template.startTime,
         endTime: template.endTime,
       },
-      room: template.room,
-      teacher: {
-        id: `fallback-${student.section.name}`,
-        user: {
-          name: template.teacherName,
-          email: template.teacherEmail,
-        },
-      },
+      room: null,
+      teacher: null,
     };
   });
 }
@@ -740,13 +734,20 @@ export async function GET() {
               email: true,
             },
           },
-          section: true,
+          section: {
+            include: {
+              rooms: { select: { name: true } },
+            },
+          },
         },
       });
 
       if (!student) {
         return NextResponse.json({ message: "Student not found" }, { status: 404 });
       }
+
+      const { rooms: sectionRooms, ...section } = student.section;
+      const sectionRoom = sectionRooms.length === 1 ? sectionRooms[0].name : null;
 
       let schedule: any[] = await prisma.scheduleBlock.findMany({
         where: {
@@ -804,12 +805,17 @@ export async function GET() {
         );
       }
 
+      schedule = schedule.map((block) => ({
+        ...block,
+        room: block.room ?? sectionRoom,
+      }));
+
       return NextResponse.json({
         studentId: student.studentId,
         name: student.user.name,
         email: student.user.email,
         gradeLevel: student.gradeLevel,
-        section: student.section,
+        section,
         dateOfBirth: student.dateOfBirth?.toISOString().split("T")[0] ?? null,
         gender: student.gender,
         phone: student.phone,
@@ -910,6 +916,7 @@ export async function GET() {
       teacher: teacher
         ? {
             id: teacher.id,
+            teacherId: teacher.teacherId,
             name: teacher.user.name,
             email: teacher.user.email,
             dateOfBirth: teacher.dateOfBirth?.toISOString().split("T")[0] ?? null,

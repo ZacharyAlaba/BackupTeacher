@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useTeacherTheme } from "@/lib/useTeacherTheme";
 import StudentSidebar from "@/components/StudentSidebar";
+import { splitFullName } from "@/lib/splitFullName";
 
 type AttendanceRecord = {
   id: string;
@@ -67,7 +68,6 @@ export default function StudentAttendancePage() {
   const [data, setData] = useState<StudentAttendanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [attendancePage, setAttendancePage] = useState(0);
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileEditing, setProfileEditing] = useState(false);
@@ -266,21 +266,11 @@ export default function StudentAttendancePage() {
     return Array.from(new Set(data.attendance.map((record) => record.date).filter((date): date is string => Boolean(date)))).sort();
   }, [data]);
 
-  const visibleAttendanceDates = useMemo(
-    () => attendanceDates.slice(attendancePage * 5, attendancePage * 5 + 5),
-    [attendanceDates, attendancePage]
-  );
-
-  const totalAttendancePages = Math.max(1, Math.ceil(attendanceDates.length / 5));
-
-  useEffect(() => {
-    setAttendancePage(0);
-  }, [data?.studentId]);
-
   const subjectRows = useMemo(() => {
     const groups = new Map<
       string,
       {
+        subjectId: string;
         subjectName: string;
         statusByDate: Map<string, string>;
         counts: Record<string, number>;
@@ -289,7 +279,9 @@ export default function StudentAttendancePage() {
 
     data?.attendance.forEach((record) => {
       const subjectName = record.subject?.name || "Unassigned";
-      const existing = groups.get(subjectName) || {
+      const subjectId = record.subject?.id || subjectName;
+      const existing = groups.get(subjectId) || {
+        subjectId,
         subjectName,
         statusByDate: new Map<string, string>(),
         counts: {
@@ -307,11 +299,18 @@ export default function StudentAttendancePage() {
 
       const statusKey = record.status || "ABSENT";
       existing.counts[statusKey] = (existing.counts[statusKey] || 0) + 1;
-      groups.set(subjectName, existing);
+      groups.set(subjectId, existing);
     });
 
     return Array.from(groups.values()).sort((a, b) => a.subjectName.localeCompare(b.subjectName));
   }, [data]);
+
+  const visibleSubjectRows = subjectRows
+    .map((subjectRow) => ({
+      ...subjectRow,
+      dates: attendanceDates.filter((date) => subjectRow.statusByDate.has(date)),
+    }))
+    .filter((subjectRow) => subjectRow.dates.length > 0);
 
   const statusSymbols: Record<string, string> = {
     PRESENT: "✓",
@@ -349,7 +348,7 @@ export default function StudentAttendancePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white light:from-slate-100 light:via-slate-100 light:to-slate-200 light:text-slate-900">
       <div className="w-full px-4 py-6 md:px-6 xl:px-8">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[256px_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 gap-4 lg:pl-44">
           <StudentSidebar
             studentName={data.name}
             studentId={data.studentId}
@@ -362,7 +361,7 @@ export default function StudentAttendancePage() {
           <div className="min-w-0">
             <div className="mb-5 rounded-2xl border border-slate-700 bg-slate-900/70 p-5 shadow-xl backdrop-blur light:border-slate-200 light:bg-white">
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-emerald-300 light:text-emerald-700">Subject Attendance</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-emerald-300 light:text-emerald-700">Subjects</p>
                 <h1 className="mt-2 text-3xl font-semibold text-white light:text-slate-900">{data.name}</h1>
                 <p className="mt-2 text-sm text-slate-400 light:text-slate-500">{data.studentId} · {data.section.name} · {data.gradeLevel}</p>
               </div>
@@ -379,76 +378,55 @@ export default function StudentAttendancePage() {
                     </span>
                   ))}
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setAttendancePage((page) => Math.max(0, page - 1))}
-                    disabled={attendancePage === 0}
-                    className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 light:border-slate-300 light:text-slate-600 light:hover:bg-slate-100"
-                    aria-label="Previous attendance dates"
-                  >
-                    ←
-                  </button>
-                  <div className="text-[10px] uppercase tracking-[0.16em] text-slate-400 light:text-slate-500">
-                    {data.section.name} · {data.gradeLevel}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setAttendancePage((page) => Math.min(totalAttendancePages - 1, page + 1))}
-                    disabled={attendancePage >= totalAttendancePages - 1}
-                    className="rounded-md border border-slate-700 px-2 py-1 text-xs text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40 light:border-slate-300 light:text-slate-600 light:hover:bg-slate-100"
-                    aria-label="Next attendance dates"
-                  >
-                    →
-                  </button>
+                <div className="text-[10px] uppercase tracking-[0.16em] text-slate-400 light:text-slate-500">
+                  {data.section.name} · {data.gradeLevel}
                 </div>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] border-separate border-spacing-0">
+                <table className="w-full min-w-[720px] border-separate border-spacing-0">
                   <thead>
                     <tr className="bg-slate-900/60 text-left text-[10px] uppercase tracking-[0.16em] text-slate-400 light:bg-slate-100 light:text-slate-500">
-                      <th className="border-b border-slate-700 px-4 py-3 font-semibold light:border-slate-200">Subject</th>
-                      {visibleAttendanceDates.map((date) => (
-                        <th key={date} className="border-b border-slate-700 px-2 py-3 text-center font-semibold light:border-slate-200">
-                          {new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                        </th>
-                      ))}
+                      <th className="w-1/3 border-b border-slate-700 px-4 py-3 font-semibold light:border-slate-200">Subject</th>
+                      <th className="border-b border-slate-700 px-4 py-3 font-semibold light:border-slate-200">Attendance dates</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {subjectRows.length === 0 ? (
+                    {visibleSubjectRows.length === 0 ? (
                       <tr>
-                        <td colSpan={visibleAttendanceDates.length + 1} className="border-b border-slate-800 px-4 py-6 text-center text-slate-400 light:border-slate-200 light:text-slate-500">
-                          No attendance has been posted yet.
+                        <td colSpan={2} className="border-b border-slate-800 px-4 py-6 text-center text-slate-400 light:border-slate-200 light:text-slate-500">
+                          {subjectRows.length === 0 ? "No attendance has been posted yet." : "No attendance dates for this period."}
                         </td>
                       </tr>
                     ) : (
-                      subjectRows.map(({ subjectName, statusByDate }) => (
-                        <tr key={subjectName} className="bg-slate-900/30 hover:bg-slate-800/40 light:bg-white light:hover:bg-slate-50">
-                          <td className="border-b border-slate-800 bg-slate-900/40 px-4 py-3 align-middle light:border-slate-200 light:bg-white">
+                      visibleSubjectRows.map(({ subjectId, subjectName, statusByDate, dates }) => (
+                        <tr key={subjectId} className="bg-slate-900/30 hover:bg-slate-800/40 light:bg-white light:hover:bg-slate-50">
+                          <td className="border-b border-slate-800 px-4 py-3 align-middle text-sm font-medium text-white light:border-slate-200 light:text-slate-900">
                             <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-sm font-bold text-white">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-sm font-bold text-white">
                                 {subjectName.charAt(0).toUpperCase()}
                               </div>
-                              <div>
-                                <div className="font-medium text-white light:text-slate-900">{subjectName}</div>
-                                <div className="text-[11px] text-slate-400 light:text-slate-500">Attendance</div>
-                              </div>
+                              {subjectName}
                             </div>
                           </td>
-
-                          {visibleAttendanceDates.map((date) => {
-                            const status = statusByDate.get(date) || "";
-                            const statusClass = statusClasses[status] || "border-slate-700 bg-slate-800/40 text-slate-300 light:border-slate-200 light:bg-slate-100 light:text-slate-400";
-                            return (
-                              <td key={`${subjectName}-${date}`} className="border-b border-slate-800 px-2 py-3 text-center align-middle light:border-slate-200">
-                                <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border text-sm font-semibold ${statusClass}`}>
-                                  {status ? statusSymbols[status] || "-" : "-"}
-                                </span>
-                              </td>
-                            );
-                          })}
+                          <td className="border-b border-slate-800 px-4 py-2 light:border-slate-200">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {dates.map((date) => {
+                                const status = statusByDate.get(date) || "";
+                                const statusClass = statusClasses[status] || "border-slate-700 bg-slate-800/40 text-slate-300 light:border-slate-200 light:bg-slate-100 light:text-slate-400";
+                                return (
+                                  <div key={`${subjectId}-${date}`} className="flex w-14 flex-col items-center gap-1">
+                                    <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400 light:text-slate-500">
+                                      {new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                    </span>
+                                    <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border text-sm font-semibold ${statusClass}`}>
+                                      {status ? statusSymbols[status] || "-" : "-"}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </td>
                         </tr>
                       ))
                     )}
@@ -461,8 +439,8 @@ export default function StudentAttendancePage() {
       </div>
 
       {showProfileModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-8 max-w-lg w-full shadow-lg">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
+          <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-3xl overflow-y-auto rounded-xl border border-slate-700 bg-slate-800 p-5 shadow-lg sm:p-6">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">Student account</p>
@@ -492,12 +470,19 @@ export default function StudentAttendancePage() {
 
             {!profileEditing ? (
               <div className="space-y-3">
-                <div className="rounded-lg border border-slate-600 bg-slate-700/50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Name</p>
-                  <p className="mt-1 text-lg font-semibold text-white">{studentProfile?.name || data.name}</p>
-                  <p className="mt-1 text-sm text-slate-300">Student ID: {studentProfile?.studentId || data.studentId}</p>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {[
+                    ["First Name", splitFullName(studentProfile?.name || data.name).firstName],
+                    ["Last Name", splitFullName(studentProfile?.name || data.name).lastName],
+                    ["Student ID", studentProfile?.studentId || data.studentId],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-lg border border-slate-600 bg-slate-700/50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+                      <p className="mt-1 break-words text-sm font-semibold text-white">{value || "Not provided"}</p>
+                    </div>
+                  ))}
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {[
                     ["Email", studentProfile?.email || data.email],
                     ["Section", studentProfile?.sectionName || data.section.name],

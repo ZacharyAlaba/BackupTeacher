@@ -5,9 +5,11 @@ import { generateStudentId } from "@/lib/studentIdGenerator";
 import bcrypt from "bcryptjs";
 import { parse } from "csv-parse/sync";
 import * as XLSX from "xlsx";
+import { sendStudentCredentialsEmail } from "@/lib/otp-utils";
 
 interface BulkImportStudent {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   gradeLevel: string;
   sectionId: string;
@@ -37,6 +39,8 @@ interface ImportResult {
     name: string;
     email: string;
     temporaryPassword: string;
+    emailSent: boolean;
+    emailError?: string;
   }>;
 }
 
@@ -94,6 +98,9 @@ export async function POST(request: Request) {
 
     const headers = rows[0].map((h) => h.trim().toLowerCase());
     const nameIndex = headers.indexOf("name");
+    const firstNameIndex = headers.indexOf("firstname");
+    const lastNameIndex = headers.indexOf("lastname");
+    const hasSplitNameColumns = firstNameIndex !== -1 || lastNameIndex !== -1;
     const emailIndex = headers.indexOf("email");
     const gradeLevelIndex = headers.indexOf("grade");
     const sectionNameIndex = headers.indexOf("section");
@@ -104,9 +111,15 @@ export async function POST(request: Request) {
     const guardianNameIndex = headers.indexOf("guardianname");
     const guardianPhoneIndex = headers.indexOf("guardianphone");
 
-    if (nameIndex === -1 || emailIndex === -1 || gradeLevelIndex === -1 || sectionNameIndex === -1) {
+    if (
+      emailIndex === -1 ||
+      gradeLevelIndex === -1 ||
+      sectionNameIndex === -1 ||
+      (hasSplitNameColumns && (firstNameIndex === -1 || lastNameIndex === -1)) ||
+      (!hasSplitNameColumns && nameIndex === -1)
+    ) {
       return new Response(
-        JSON.stringify({ error: "CSV must have columns: name, email, grade, section" }),
+        JSON.stringify({ error: "CSV must have columns: firstName, lastName, email, grade, section (legacy name, email is also supported)" }),
         { status: 400 }
       );
     }
@@ -130,7 +143,11 @@ export async function POST(request: Request) {
 
       if (values.length < 4) continue;
 
-      const name = values[nameIndex];
+      const legacyName = nameIndex !== -1 ? values[nameIndex] : "";
+      const legacyNameParts = legacyName.trim().split(/\s+/);
+      const firstName = hasSplitNameColumns ? values[firstNameIndex] : legacyNameParts[0];
+      const lastName = hasSplitNameColumns ? values[lastNameIndex] : legacyNameParts.slice(1).join(" ");
+      const name = `${firstName || ""} ${lastName || ""}`.trim();
       const email = values[emailIndex];
       const gradeRaw = values[gradeLevelIndex].trim();
       const gradeLevel = gradeRaw.toUpperCase().startsWith("G") ? gradeRaw.toUpperCase() : `G${gradeRaw}`;
@@ -144,8 +161,8 @@ export async function POST(request: Request) {
 
       try {
         // Validate inputs
-        if (!name || !email) {
-          throw new Error("Name and email are required");
+        if (!firstName || !email || (hasSplitNameColumns && !lastName)) {
+          throw new Error("First name, last name, and email are required");
         }
 
         if (!email.includes("@")) {
@@ -206,11 +223,23 @@ export async function POST(request: Request) {
           },
         });
 
+        let emailSent = false;
+        let emailError: string | undefined;
+        try {
+          await sendStudentCredentialsEmail(user.name, user.email, temporaryPassword);
+          emailSent = true;
+        } catch (error) {
+          emailError = error instanceof Error ? error.message : "Failed to send credentials email.";
+          console.error(`Failed to email temporary credentials for imported student ${email}:`, error);
+        }
+
         result.created.push({
           studentId: student.studentId,
           name: user.name,
           email: user.email,
           temporaryPassword,
+          emailSent,
+          emailError,
         });
         result.success++;
       } catch (error) {

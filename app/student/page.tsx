@@ -8,6 +8,8 @@ import autoTable from "jspdf-autotable";
 import Timetable from "@/components/Timetable";
 import StudentSidebar from "@/components/StudentSidebar";
 import { useTeacherTheme } from "@/lib/useTeacherTheme";
+import { splitFullName } from "@/lib/splitFullName";
+import { ChevronDown } from "lucide-react";
 
 interface Subject {
   id: string;
@@ -36,7 +38,7 @@ interface ScheduleBlock {
   subject: Subject;
   timeSlot: TimeSlot;
   room?: string;
-  teacher: Teacher;
+  teacher?: Teacher | null;
 }
 
 interface Section {
@@ -68,6 +70,7 @@ export default function StudentPage() {
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAllClasses, setShowAllClasses] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileEditing, setProfileEditing] = useState(false);
   const [profileForm, setProfileForm] = useState({
@@ -298,7 +301,7 @@ export default function StudentPage() {
     doc.text("Libertad National High School", 10, 10);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text("Senior High School - Weekly Schedule", 10, 17);
+    doc.text("Senior High School - Schedule Timetable", 10, 17);
     doc.setFontSize(8.5);
     doc.text(`Generated: ${generatedAt}`, pageWidth - 10, 10, { align: "right" });
 
@@ -312,13 +315,14 @@ export default function StudentPage() {
     doc.text(`Section: ${studentData.section.name}`, pageWidth - 10, 31, { align: "right" });
 
     autoTable(doc, {
-      startY: 36,
+      startY: 32,
       head: [["Time", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]],
       body: tableBody,
       theme: "grid",
       styles: {
         fontSize: 8.5,
-        cellPadding: 3,
+        cellPadding: 2,
+        minCellHeight: 11,
         valign: "middle",
         halign: "center",
         lineColor: [203, 213, 225],
@@ -337,6 +341,8 @@ export default function StudentPage() {
       columnStyles: {
         0: { cellWidth: 30, fontStyle: "bold", fillColor: [226, 232, 240] },
       },
+      margin: { top: 32, right: 10, bottom: 14, left: 10 },
+      rowPageBreak: "avoid",
       didParseCell: (data) => {
         if (data.section === "body" && data.column.index > 0) {
           const text = String(data.cell.raw ?? "").toUpperCase();
@@ -360,7 +366,7 @@ export default function StudentPage() {
       },
     });
 
-    doc.save(`lnhs-weekly-schedule-${safeName}.pdf`);
+    doc.save(`lnhs-schedule-timetable-${safeName}.pdf`);
   }
 
   const getDaySchedule = (day: string) => {
@@ -400,7 +406,7 @@ export default function StudentPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 px-4 py-6 text-white light:from-slate-100 light:to-slate-200 light:text-slate-900 md:px-6">
       <div className="w-full px-4 md:px-6 xl:px-8">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[256px_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 gap-4 lg:pl-44">
           <StudentSidebar
             studentName={studentData.name}
             studentId={studentData.studentId}
@@ -433,20 +439,20 @@ export default function StudentPage() {
           </div>
         </div>
 
-        {/* Weekly Schedule */}
+        {/* Schedule Timetable */}
         <div id="weekly-schedule" className="overflow-hidden rounded-lg border border-slate-700 bg-slate-800 light:border-slate-200 light:bg-white">
-          <div className="flex items-center justify-between gap-3 border-b border-slate-700 p-6 light:border-slate-200">
-            <h2 className="text-2xl font-bold text-white light:text-slate-900">Weekly Schedule</h2>
+          <div className="flex items-center justify-between gap-3 border-b border-slate-700 p-4 light:border-slate-200">
+            <h2 className="text-lg font-bold text-white light:text-slate-900">Schedule Timetable</h2>
             <button
               type="button"
               onClick={downloadWeeklySchedulePdf}
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
+              className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-500"
             >
               Download PDF
             </button>
           </div>
 
-          <div className="p-6">
+          <div className="p-4">
             <Timetable
               schedule={(studentData?.schedule ?? []).map((block) => ({
                 day: block.timeSlot.day,
@@ -456,17 +462,28 @@ export default function StudentPage() {
                 room: block.room || null,
               }))}
               timeSlots={(timeSlots.length > 0 ? timeSlots : (studentData?.schedule ?? []).map(s => ({ startTime: s.timeSlot.startTime, endTime: s.timeSlot.endTime }))).map(ts => ({ startTime: ts.startTime, endTime: ts.endTime }))}
+              compact
             />
           </div>
         </div>
 
         {/* Classes List */}
         <div className="mt-8 overflow-hidden rounded-lg border border-slate-700 bg-slate-800 light:border-slate-200 light:bg-white">
-          <div className="border-b border-slate-700 p-6 light:border-slate-200">
-            <h2 className="text-2xl font-bold text-white light:text-slate-900">All Classes</h2>
+          <div className="border-b border-slate-700 light:border-slate-200">
+            <button
+              type="button"
+              aria-expanded={showAllClasses}
+              aria-controls="all-classes-table"
+              onClick={() => setShowAllClasses((visible) => !visible)}
+              className="flex w-full items-center justify-between p-4 text-left"
+            >
+              <h2 className="text-xl font-bold text-white light:text-slate-900">All Classes</h2>
+              <ChevronDown className={`h-5 w-5 text-slate-400 transition-transform ${showAllClasses ? "rotate-180" : ""}`} aria-hidden="true" />
+            </button>
           </div>
 
-          <div className="overflow-x-auto">
+          {showAllClasses && (
+          <div id="all-classes-table" className="overflow-x-auto">
             <table className="w-full">
               <thead className="border-b border-slate-600 bg-slate-700 light:border-slate-200 light:bg-slate-100">
                 <tr>
@@ -486,13 +503,13 @@ export default function StudentPage() {
                   </tr>
                 ) : (
                   studentData.schedule.map((block) => (
-                    <tr key={block.id} className="hover:bg-slate-700/50 transition">
+                    <tr key={block.id} className="transition-colors hover:bg-cyan-900/30 light:hover:bg-cyan-50">
                       <td className="px-6 py-4 text-sm font-medium text-white light:text-slate-900">{block.subject.name}</td>
                       <td className="px-6 py-4 text-sm text-slate-300 light:text-slate-600">{block.timeSlot.day}</td>
                       <td className="px-6 py-4 text-sm text-slate-300 light:text-slate-600">
                         {formatDisplayTime(block.timeSlot.startTime)} - {formatDisplayTime(block.timeSlot.endTime)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-300 light:text-slate-600">{block.teacher.user.name}</td>
+                      <td className="px-6 py-4 text-sm text-slate-300 light:text-slate-600">{block.teacher?.user?.name || "-"}</td>
                       <td className="px-6 py-4 text-sm text-slate-300 light:text-slate-600">{block.room || "-"}</td>
                     </tr>
                   ))
@@ -500,6 +517,7 @@ export default function StudentPage() {
               </tbody>
             </table>
           </div>
+          )}
         </div>
           </div>
       </div>
@@ -507,8 +525,8 @@ export default function StudentPage() {
 
       {/* Edit Profile Modal */}
       {showProfileModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-8 max-w-lg w-full shadow-lg">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
+          <div className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-3xl overflow-y-auto rounded-xl border border-slate-700 bg-slate-800 p-5 shadow-lg sm:p-6">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">Student account</p>
@@ -538,12 +556,19 @@ export default function StudentPage() {
 
             {!profileEditing ? (
               <div className="space-y-3">
-                <div className="rounded-lg border border-slate-600 bg-slate-700/50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Name</p>
-                  <p className="mt-1 text-lg font-semibold text-white">{studentData.name}</p>
-                  <p className="mt-1 text-sm text-slate-300">Student ID: {studentData.studentId}</p>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {[
+                    ["First Name", splitFullName(studentData.name).firstName],
+                    ["Last Name", splitFullName(studentData.name).lastName],
+                    ["Student ID", studentData.studentId],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-lg border border-slate-600 bg-slate-700/50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+                      <p className="mt-1 break-words text-sm font-semibold text-white">{value || "Not provided"}</p>
+                    </div>
+                  ))}
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {[
                     ["Email", studentData.email],
                     ["Section", studentData.section.name],
