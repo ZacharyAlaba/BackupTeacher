@@ -11,7 +11,11 @@ function copyCookies(source: NextResponse, target: NextResponse) {
 
 export default async function middleware(req: NextRequest) {
   const supabaseResponse = await refreshSupabaseSession(req);
-  const token = await getToken({ req, secret: authSecret });
+  const token = await getToken({
+    req,
+    secret: authSecret,
+    secureCookie: req.nextUrl.protocol === "https:",
+  });
   const path = req.nextUrl.pathname;
 
   const redirectWithCookies = (destination: string) => {
