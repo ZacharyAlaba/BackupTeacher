@@ -1245,7 +1245,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
           <thead>
             <tr className="bg-slate-900 border-b border-slate-700">
               {/* Time column */}
-              <th className="w-28 border border-slate-700 px-2 py-2 text-left text-xs font-bold text-slate-300 bg-slate-950 sticky left-0 z-20">
+              <th className="w-28 border border-slate-700 px-2 py-2 text-left text-xs font-bold text-slate-300 bg-slate-950 sticky left-0 z-20 light:bg-slate-100 light:text-slate-700">
                 TIME
               </th>
 
@@ -1266,7 +1266,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
 
             {/* Days row */}
             <tr className="bg-slate-900 border-b border-slate-700">
-              <th className="border border-slate-700 px-3 py-2 bg-slate-950"></th>
+              <th className="border border-slate-700 px-3 py-2 bg-slate-950 light:bg-slate-100"></th>
               {displayedSections.map((section, sectionIndex) => (
                 <React.Fragment key={`days-${section.id}`}>
                   {uniqueDays.map((day, dayIndex) => (
@@ -1288,8 +1288,8 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
             {rowTimeSlots.map((timeSlot, rowIndex) => (
               <tr key={timeSlot.id} className="border-b border-slate-700 hover:bg-slate-700/30">
                 {/* Time cell */}
-                <td className={`border border-slate-700 px-2 py-1.5 text-[10px] font-bold text-slate-200 bg-slate-950 sticky left-0 z-10 whitespace-nowrap ${
-                  rowIndex % 2 === 0 ? "bg-slate-950" : "bg-slate-900"
+                <td className={`border border-slate-700 px-2 py-1.5 text-[10px] font-bold text-slate-200 sticky left-0 z-10 whitespace-nowrap light:text-slate-700 ${
+                  rowIndex % 2 === 0 ? "bg-slate-950 light:bg-white" : "bg-slate-900 light:bg-slate-50"
                 }`}>
                   <div className="text-xs leading-none">
                     {formatCompactTime(timeSlot.startTime)}-{formatCompactTime(timeSlot.endTime)}
