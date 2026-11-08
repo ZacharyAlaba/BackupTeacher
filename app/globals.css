@@ -327,6 +327,14 @@ html:not(.light) .admin-shell .admin-category-label {
   color: #ffffff !important;
 }
 
+:root {
+  --section-enrollment-track: #334155;
+}
+
+html.light {
+  --section-enrollment-track: #d7e2eb;
+}
+
 @keyframes floatSlow {
   0% {
     transform: translateY(0px);

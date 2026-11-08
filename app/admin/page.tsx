@@ -659,7 +659,10 @@ export default function AdminDashboard() {
                         <span className="text-xs font-medium text-slate-200 truncate">{load.teacherName}</span>
                         <span className="text-xs font-semibold text-slate-300">{load.workloadPercent}%</span>
                       </div>
-                      <div className="h-2 rounded-full bg-slate-700 overflow-hidden">
+                      <div
+                        className="h-2 rounded-full overflow-hidden"
+                        style={{ backgroundColor: "var(--section-enrollment-track)" }}
+                      >
                         <div
                           className="h-full rounded-full transition-all"
                           style={{

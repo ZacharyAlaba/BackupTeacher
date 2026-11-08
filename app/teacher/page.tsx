@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useTeacherTheme } from "@/lib/useTeacherTheme";
 import { splitFullName } from "@/lib/splitFullName";
+import { SCHOOL_YEAR } from "@/lib/schoolYear";
 
 type ScheduleItem = {
   day: string;
@@ -95,7 +96,7 @@ export default function TeacherDashboard() {
     doc.text("Libertad National High School", 10, 10);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text("Senior High School - Weekly Teaching Timetable", 10, 17);
+    doc.text(`Senior High School - Weekly Teaching Timetable | School Year ${SCHOOL_YEAR}`, 10, 17);
     doc.setFontSize(8.5);
     doc.text(`Generated: ${generatedAt}`, pageWidth - 10, 10, { align: "right" });
 

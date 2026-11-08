@@ -1,6 +1,7 @@
 "use client";
 
 import { findImagePrefillEntries } from "@/lib/imagePrefill";
+import { SCHOOL_YEAR } from "@/lib/schoolYear";
 
 interface TimeSlot {
   startTime: string;
@@ -129,6 +130,9 @@ export default function Timetable({ schedule, timeSlots, compact = false }: Time
 
   return (
     <div className="w-full overflow-hidden">
+      <p className="mb-2 text-xs font-medium text-slate-400 light:text-slate-600">
+        School Year {SCHOOL_YEAR}
+      </p>
       <div className="w-full align-middle">
         <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-950 shadow-lg shadow-slate-950/40 light:border-slate-200 light:bg-white light:shadow-slate-200/50">
           <table className="w-full table-fixed border-collapse text-sm">
