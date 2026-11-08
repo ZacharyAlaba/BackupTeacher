@@ -571,56 +571,58 @@ export default function TeachersPage() {
               </p>
             </div>
           ) : (
-            <table className="w-full table-fixed">
-              <colgroup>
-                <col className="w-[14%]" />
-                <col className="w-[11%]" />
-                <col className="w-[11%]" />
-                <col className="w-[22%]" />
-                <col className="w-[22%]" />
-                <col className="w-[12%]" />
-                <col className="w-[8%]" />
-              </colgroup>
-              <thead>
-                <tr className="border-b border-slate-700 bg-slate-900">
-                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Teacher ID</th>
-                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">First Name</th>
-                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Last Name</th>
-                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Email</th>
-                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Gov. Email</th>
-                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Created</th>
-                  <th className="whitespace-nowrap px-2 py-2 text-right text-xs font-semibold text-slate-300">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTeachers.map((teacher) => (
-                  <tr key={teacher.id} className="border-b border-slate-700 hover:bg-slate-700/50">
-                    <td className="whitespace-nowrap px-2 py-2 font-mono text-xs text-blue-300">{teacher.teacherId}</td>
-                    <td className="px-2 py-2 text-xs text-white">{teacher.user.name.trim().split(/\s+/)[0]}</td>
-                    <td className="px-2 py-2 text-xs text-white">{teacher.user.name.trim().split(/\s+/).slice(1).join(" ") || "-"}</td>
-                    <td className="break-all px-2 py-2 text-xs text-slate-400">{teacher.user.email}</td>
-                    <td className="break-all px-2 py-2 text-xs text-slate-400">{teacher.governmentEmail || "-"}</td>
-                    <td className="whitespace-nowrap px-2 py-2 text-xs text-slate-400">
-                      {new Date(teacher.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-2 text-right">
-                      <button
-                        onClick={() => handleEdit(teacher)}
-                        className="mr-1 rounded bg-indigo-600 px-2 py-1 text-xs text-white hover:bg-indigo-700"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(teacher.id)}
-                        className="rounded bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700"
-                      >
-                        Delete
-                      </button>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1100px] table-fixed">
+                <colgroup>
+                  <col className="w-[12%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[16%]" />
+                </colgroup>
+                <thead>
+                  <tr className="border-b border-slate-700 bg-slate-900">
+                    <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Teacher ID</th>
+                    <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">First Name</th>
+                    <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Last Name</th>
+                    <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Email</th>
+                    <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Gov. Email</th>
+                    <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Created</th>
+                    <th className="whitespace-nowrap px-2 py-2 text-right text-xs font-semibold text-slate-300">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredTeachers.map((teacher) => (
+                    <tr key={teacher.id} className="border-b border-slate-700 hover:bg-slate-700/50">
+                      <td className="whitespace-nowrap px-2 py-2 font-mono text-xs text-blue-300">{teacher.teacherId}</td>
+                      <td className="px-2 py-2 text-xs text-white">{teacher.user.name.trim().split(/\s+/)[0]}</td>
+                      <td className="px-2 py-2 text-xs text-white">{teacher.user.name.trim().split(/\s+/).slice(1).join(" ") || "-"}</td>
+                      <td className="break-all px-2 py-2 text-xs text-slate-400">{teacher.user.email}</td>
+                      <td className="break-all px-2 py-2 text-xs text-slate-400">{teacher.governmentEmail || "-"}</td>
+                      <td className="whitespace-nowrap px-2 py-2 text-xs text-slate-400">
+                        {new Date(teacher.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-2 text-right">
+                        <button
+                          onClick={() => handleEdit(teacher)}
+                          className="mr-1 rounded bg-indigo-600 px-2 py-1 text-xs text-white hover:bg-indigo-700"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(teacher.id)}
+                          className="rounded bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>
