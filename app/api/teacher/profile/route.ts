@@ -31,6 +31,7 @@ export async function GET() {
       teacherId: teacher.teacherId,
       name: teacher.user.name,
       email: teacher.user.email,
+      governmentEmail: teacher.governmentEmail,
       dateOfBirth: teacher.dateOfBirth?.toISOString().split("T")[0] ?? null,
       gender: teacher.gender,
       phone: teacher.phone,
@@ -51,7 +52,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { dateOfBirth, gender, phone, address } = await request.json();
+    const { dateOfBirth, gender, phone, address, governmentEmail } = await request.json();
 
     if (dateOfBirth && Number.isNaN(Date.parse(dateOfBirth))) {
       return NextResponse.json({ error: "Invalid date of birth" }, { status: 400 });
@@ -60,6 +61,7 @@ export async function PUT(request: NextRequest) {
     const teacher = await prisma.teacher.update({
       where: { userId: session.user.id },
       data: {
+        governmentEmail: typeof governmentEmail === "string" ? governmentEmail.trim() || null : null,
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
         gender: gender || null,
         phone: phone || null,
@@ -68,6 +70,7 @@ export async function PUT(request: NextRequest) {
     });
 
     return NextResponse.json({
+      governmentEmail: teacher.governmentEmail,
       dateOfBirth: teacher.dateOfBirth?.toISOString().split("T")[0] ?? null,
       gender: teacher.gender,
       phone: teacher.phone,

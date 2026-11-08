@@ -7,6 +7,7 @@ import { signOut, useSession } from "next-auth/react";
 interface Teacher {
   id: string;
   teacherId: string;
+  governmentEmail?: string | null;
   user: { name: string; email: string };
   createdAt: string;
 }
@@ -27,6 +28,7 @@ export default function TeachersPage() {
     firstName: "",
     lastName: "",
     email: "",
+    governmentEmail: "",
     password: "",
     dateOfBirth: "",
     gender: "",
@@ -101,7 +103,7 @@ export default function TeachersPage() {
 
       if (response.ok) {
         const result = await response.json();
-        setFormData({ firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
+        setFormData({ firstName: "", lastName: "", email: "", governmentEmail: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
         setTemporaryPasswordCode("");
         setEditingId(null);
         setShowForm(false);
@@ -210,6 +212,7 @@ export default function TeachersPage() {
       firstName: nameParts.shift() || "",
       lastName: nameParts.join(" "),
       email: teacher.user.email,
+      governmentEmail: teacher.governmentEmail || "",
       password: "",
       dateOfBirth: "",
       gender: "",
@@ -311,6 +314,17 @@ export default function TeachersPage() {
                   className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">Government Email (Optional)</label>
+                <input
+                  type="email"
+                  value={formData.governmentEmail}
+                  onChange={(e) => setFormData({ ...formData, governmentEmail: e.target.value })}
+                  placeholder="Optional government account email"
+                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+                />
+                <p className="mt-1 text-xs text-slate-400">This is only for reference and will not send an OTP.</p>
+              </div>
               {!editingId && (
                 <div>
                   <label className="block text-sm text-slate-300 mb-2">Temporary Password</label>
@@ -370,7 +384,7 @@ export default function TeachersPage() {
                   onClick={() => {
                     setShowForm(false);
                     setEditingId(null);
-                    setFormData({ firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
+                    setFormData({ firstName: "", lastName: "", email: "", governmentEmail: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
                     setSuccessMessage(null);
                   }}
                   className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-semibold"
@@ -401,7 +415,7 @@ export default function TeachersPage() {
             <button
               type="button"
               onClick={() => {
-                setFormData({ firstName: "", lastName: "", email: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
+                setFormData({ firstName: "", lastName: "", email: "", governmentEmail: "", password: "", dateOfBirth: "", gender: "", phone: "", address: "" });
                 setTemporaryPasswordCode(generateTemporaryPasswordCode());
                 setEditingId(null);
                 setSuccessMessage(null);
@@ -559,12 +573,13 @@ export default function TeachersPage() {
           ) : (
             <table className="w-full table-fixed">
               <colgroup>
-                <col className="w-[16%]" />
-                <col className="w-[12%]" />
-                <col className="w-[12%]" />
-                <col className="w-[28%]" />
                 <col className="w-[14%]" />
-                <col className="w-[18%]" />
+                <col className="w-[11%]" />
+                <col className="w-[11%]" />
+                <col className="w-[22%]" />
+                <col className="w-[22%]" />
+                <col className="w-[12%]" />
+                <col className="w-[8%]" />
               </colgroup>
               <thead>
                 <tr className="border-b border-slate-700 bg-slate-900">
@@ -572,6 +587,7 @@ export default function TeachersPage() {
                   <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">First Name</th>
                   <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Last Name</th>
                   <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Email</th>
+                  <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Gov. Email</th>
                   <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Created</th>
                   <th className="whitespace-nowrap px-2 py-2 text-right text-xs font-semibold text-slate-300">Actions</th>
                 </tr>
@@ -583,6 +599,7 @@ export default function TeachersPage() {
                     <td className="px-2 py-2 text-xs text-white">{teacher.user.name.trim().split(/\s+/)[0]}</td>
                     <td className="px-2 py-2 text-xs text-white">{teacher.user.name.trim().split(/\s+/).slice(1).join(" ") || "-"}</td>
                     <td className="break-all px-2 py-2 text-xs text-slate-400">{teacher.user.email}</td>
+                    <td className="break-all px-2 py-2 text-xs text-slate-400">{teacher.governmentEmail || "-"}</td>
                     <td className="whitespace-nowrap px-2 py-2 text-xs text-slate-400">
                       {new Date(teacher.createdAt).toLocaleDateString()}
                     </td>

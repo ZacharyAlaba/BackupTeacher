@@ -86,6 +86,7 @@ export async function POST(request: Request) {
     const genderIndex = headers.indexOf("gender");
     const phoneIndex = headers.indexOf("phone");
     const addressIndex = headers.indexOf("address");
+    const governmentEmailIndex = headers.indexOf("governmentemail");
 
     if (
       emailIndex === -1 ||
@@ -122,6 +123,7 @@ export async function POST(request: Request) {
       const gender = genderIndex !== -1 ? values[genderIndex] : "";
       const phone = phoneIndex !== -1 ? values[phoneIndex] : "";
       const address = addressIndex !== -1 ? values[addressIndex] : "";
+      const governmentEmail = governmentEmailIndex !== -1 ? values[governmentEmailIndex] : "";
 
       try {
         if (!firstName || !email || (hasSplitNameColumns && !lastName)) {
@@ -136,7 +138,8 @@ export async function POST(request: Request) {
           throw new Error("Invalid dateOfBirth format");
         }
 
-        const teacherCreateData: { dateOfBirth?: Date | null; gender?: string | null; phone?: string | null; address?: string | null } = {};
+        const teacherCreateData: { governmentEmail?: string | null; dateOfBirth?: Date | null; gender?: string | null; phone?: string | null; address?: string | null } = {};
+        if (governmentEmail) teacherCreateData.governmentEmail = governmentEmail.trim();
         if (dateOfBirth) teacherCreateData.dateOfBirth = new Date(dateOfBirth);
         if (gender) teacherCreateData.gender = gender;
         if (phone) teacherCreateData.phone = phone;

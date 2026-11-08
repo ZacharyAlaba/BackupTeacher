@@ -28,6 +28,7 @@ type TeacherProfile = {
   teacherId: string;
   name: string;
   email: string;
+  governmentEmail?: string | null;
   dateOfBirth?: string | null;
   gender?: string | null;
   phone?: string | null;
@@ -51,7 +52,7 @@ export default function TeacherDashboard() {
   const [source, setSource] = useState<"database" | "demo" | "loading">("loading");
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileEditing, setProfileEditing] = useState(false);
-  const [profileForm, setProfileForm] = useState({ dateOfBirth: "", gender: "", phone: "", address: "" });
+  const [profileForm, setProfileForm] = useState({ governmentEmail: "", dateOfBirth: "", gender: "", phone: "", address: "" });
   const [profileError, setProfileError] = useState("");
   const [profileSuccess, setProfileSuccess] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -249,6 +250,7 @@ export default function TeacherDashboard() {
 
   function openProfileModal() {
     setProfileForm({
+      governmentEmail: teacherProfile?.governmentEmail || "",
       dateOfBirth: teacherProfile?.dateOfBirth || "",
       gender: teacherProfile?.gender || "",
       phone: teacherProfile?.phone || "",
@@ -479,6 +481,7 @@ export default function TeacherDashboard() {
                     {[
                       ["Teacher ID", teacherProfile?.teacherId],
                       ["Email", teacherProfile?.email],
+                      ["Government Email", teacherProfile?.governmentEmail],
                       ["Date of Birth", teacherProfile?.dateOfBirth],
                       ["Gender", teacherProfile?.gender],
                       ["Phone", teacherProfile?.phone],
@@ -501,6 +504,16 @@ export default function TeacherDashboard() {
               ) : (
               <form onSubmit={handleProfileSave} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-slate-300 light:text-slate-700 mb-1">Government Email (Optional)</label>
+                    <input
+                      type="email"
+                      value={profileForm.governmentEmail}
+                      onChange={(e) => setProfileForm({ ...profileForm, governmentEmail: e.target.value })}
+                      placeholder="Example: jane.dela.cruz@government.ph"
+                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:border-indigo-500 light:bg-white light:border-slate-300 light:text-slate-900"
+                    />
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-300 light:text-slate-700 mb-1">Date of Birth</label>
                     <input

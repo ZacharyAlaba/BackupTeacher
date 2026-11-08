@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           teacherId: true,
+          governmentEmail: true,
           createdAt: true,
           user: { select: { name: true, email: true } },
           qualifications: { select: { subjectId: true } },
@@ -48,12 +49,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, firstName, lastName, email, password, dateOfBirth, gender, phone, address } = await request.json();
+    const { name, firstName, lastName, email, password, governmentEmail, dateOfBirth, gender, phone, address } = await request.json();
     const fullName = `${firstName || ""} ${lastName || ""}`.trim() || name;
 
     if (!fullName || !email || !password) {
       return NextResponse.json({ error: "First name, last name, email, and password required" }, { status: 400 });
     }
+
+    const normalizedGovernmentEmail = typeof governmentEmail === "string" ? governmentEmail.trim() || null : null;
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -72,6 +75,7 @@ export async function POST(request: NextRequest) {
       data: {
         teacherId: await generateTeacherId(),
         userId: user.id,
+        governmentEmail: normalizedGovernmentEmail,
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
         gender: gender || null,
         phone: phone || null,
@@ -117,8 +121,9 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, name, firstName, lastName, email, dateOfBirth, gender, phone, address } = await request.json();
+    const { id, name, firstName, lastName, email, governmentEmail, dateOfBirth, gender, phone, address } = await request.json();
     const fullName = `${firstName || ""} ${lastName || ""}`.trim() || name;
+    const normalizedGovernmentEmail = typeof governmentEmail === "string" ? governmentEmail.trim() || null : null;
 
     if (!id) {
       return NextResponse.json({ error: "Teacher ID required" }, { status: 400 });
@@ -146,6 +151,7 @@ export async function PUT(request: NextRequest) {
     await prisma.teacher.update({
       where: { id },
       data: {
+        ...(governmentEmail !== undefined && { governmentEmail: normalizedGovernmentEmail }),
         ...(dateOfBirth && { dateOfBirth: new Date(dateOfBirth) }),
         ...(gender && { gender }),
         ...(phone && { phone }),

@@ -35,6 +35,7 @@ model Teacher {
   teacherId       String           @unique
   userId          String           @unique
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  governmentEmail String?
   dateOfBirth     DateTime?
   gender          String?
   phone           String?
