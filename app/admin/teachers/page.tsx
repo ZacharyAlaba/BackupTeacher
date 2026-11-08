@@ -455,7 +455,7 @@ export default function TeachersPage() {
           <div className="mb-8 p-6 bg-slate-800 rounded-lg border border-slate-700">
             <h2 className="text-2xl font-bold text-white mb-4">Bulk Import Teachers</h2>
             <p className="text-slate-400 mb-6">
-              Upload a CSV or Excel file with columns: firstName, lastName, email. Legacy name, email files are also supported. Temporary passwords are emailed to new teachers.
+              Upload a CSV or Excel file with columns: firstName, lastName, email, and optional governmentEmail. Leave governmentEmail blank if unavailable. Legacy name, email files are also supported. Temporary passwords are emailed to new teachers.
             </p>
 
             <form onSubmit={handleBulkImport} className="space-y-4">
@@ -473,9 +473,9 @@ export default function TeachersPage() {
               <div className="bg-slate-700/50 p-4 rounded-lg border border-slate-600">
                 <p className="text-sm text-slate-300 mb-3">CSV Format Example:</p>
                 <pre className="text-xs text-slate-400 overflow-x-auto">
-                firstName,lastName,email
-                John,Doe,john@school.edu
-                Jane,Smith,jane@school.edu
+                firstName,lastName,email,governmentEmail
+                John,Doe,john@school.edu,john.doe@gov.ph
+                Jane,Smith,jane@school.edu,
                 </pre>
               </div>
 
