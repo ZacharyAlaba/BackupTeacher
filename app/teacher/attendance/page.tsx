@@ -620,11 +620,11 @@ export default function TeacherAttendancePage() {
     ? historyDatesToBrowse.slice(safeHistoryDatePage * 5, safeHistoryDatePage * 5 + 5)
     : currentAttendanceDate ? [currentAttendanceDate] : [];
   const statusOptions = [
-    { value: "PRESENT", label: "Present", symbol: "✓", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" },
-    { value: "ABSENT", label: "Absent", symbol: "-", className: "border-rose-500/30 bg-rose-500/10 text-rose-300" },
-    { value: "LATE", label: "Arrived late", symbol: "△", className: "border-amber-500/30 bg-amber-500/10 text-amber-300" },
-    { value: "LEFT_EARLY", label: "Left early", symbol: "◇", className: "border-orange-500/30 bg-orange-500/10 text-orange-300" },
-    { value: "EXCUSED", label: "Excused", symbol: "○", className: "border-sky-500/30 bg-sky-500/10 text-sky-300" },
+    { value: "PRESENT", label: "Present", symbol: "✓", className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300 light:border-emerald-300 light:bg-emerald-100 light:text-emerald-800" },
+    { value: "ABSENT", label: "Absent", symbol: "-", className: "border-rose-500/30 bg-rose-500/10 text-rose-300 light:border-rose-300 light:bg-rose-100 light:text-rose-800" },
+    { value: "LATE", label: "Arrived late", symbol: "△", className: "border-amber-500/30 bg-amber-500/10 text-amber-300 light:border-amber-300 light:bg-amber-100 light:text-amber-800" },
+    { value: "LEFT_EARLY", label: "Left early", symbol: "◇", className: "border-orange-500/30 bg-orange-500/10 text-orange-300 light:border-orange-300 light:bg-orange-100 light:text-orange-800" },
+    { value: "EXCUSED", label: "Excused", symbol: "○", className: "border-sky-500/30 bg-sky-500/10 text-sky-300 light:border-sky-300 light:bg-sky-100 light:text-sky-800" },
   ] as const;
 
   const normalizeStatusValue = (value: string) => value;
@@ -1137,7 +1137,7 @@ export default function TeacherAttendancePage() {
                                       className={`flex h-8 w-8 items-center justify-center rounded-lg border text-sm font-semibold transition cursor-pointer ${
                                         statusObj
                                           ? statusObj.className
-                                          : "border-slate-700 bg-[#173a57] text-slate-300 light:border-slate-200 light:bg-slate-100 light:text-slate-400"
+                                          : "border-slate-700 bg-[#173a57] text-slate-300 light:border-slate-300 light:bg-slate-100 light:text-slate-600"
                                       }`}
                                     >
                                       {statusObj ? statusObj.symbol : "-"}
