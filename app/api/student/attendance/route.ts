@@ -28,7 +28,15 @@ export async function GET() {
     }
 
     const attendance = await prisma.attendanceRecord.findMany({
-      where: { studentId: student.id },
+      where: {
+        studentId: student.id,
+        sectionId: student.sectionId,
+        subject: {
+          scheduleBlocks: {
+            some: { sectionId: student.sectionId },
+          },
+        },
+      },
       include: {
         subject: true,
         teacher: {
