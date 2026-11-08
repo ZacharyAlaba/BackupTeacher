@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTeacherTheme } from "@/lib/useTeacherTheme";
 import { splitFullName } from "@/lib/splitFullName";
 import { SCHOOL_YEAR } from "@/lib/schoolYear";
+import { getSchoolLogoDataUrl } from "@/lib/schoolLogo";
 
 type ScheduleItem = {
   day: string;
@@ -80,7 +81,16 @@ export default function TeacherDashboard() {
     [schedule]
   );
 
-  const downloadTimetablePdf = () => {
+  const downloadTimetablePdf = async () => {
+    let logoDataUrl: string;
+    try {
+      logoDataUrl = await getSchoolLogoDataUrl();
+    } catch (error) {
+      console.error("Unable to load the school logo for the timetable PDF.", error);
+      window.alert("The school logo could not be loaded. Please try downloading the timetable again.");
+      return;
+    }
+
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -90,13 +100,14 @@ export default function TeacherDashboard() {
     // Header banner
     doc.setFillColor(30, 41, 59);
     doc.rect(0, 0, pageWidth, 24, "F");
+    doc.addImage(logoDataUrl, "JPEG", 10, 4, 16, 16);
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(15);
-    doc.text("Libertad National High School", 10, 10);
+    doc.text("Libertad National High School", 30, 10);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Senior High School - Weekly Teaching Timetable | School Year ${SCHOOL_YEAR}`, 10, 17);
+    doc.text(`Senior High School - Weekly Teaching Timetable | School Year ${SCHOOL_YEAR}`, 30, 17);
     doc.setFontSize(8.5);
     doc.text(`Generated: ${generatedAt}`, pageWidth - 10, 10, { align: "right" });
 

@@ -10,6 +10,7 @@ import StudentSidebar from "@/components/StudentSidebar";
 import { useTeacherTheme } from "@/lib/useTeacherTheme";
 import { splitFullName } from "@/lib/splitFullName";
 import { SCHOOL_YEAR } from "@/lib/schoolYear";
+import { getSchoolLogoDataUrl } from "@/lib/schoolLogo";
 import { ChevronDown } from "lucide-react";
 
 interface Subject {
@@ -249,8 +250,17 @@ export default function StudentPage() {
     return 0;
   }
 
-  function downloadWeeklySchedulePdf() {
+  async function downloadWeeklySchedulePdf() {
     if (!studentData) return;
+
+    let logoDataUrl: string;
+    try {
+      logoDataUrl = await getSchoolLogoDataUrl();
+    } catch (error) {
+      console.error("Unable to load the school logo for the timetable PDF.", error);
+      window.alert("The school logo could not be loaded. Please try downloading the timetable again.");
+      return;
+    }
 
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
     const allTimeSlots = Array.from(
@@ -296,13 +306,14 @@ export default function StudentPage() {
     // Header banner
     doc.setFillColor(30, 41, 59);
     doc.rect(0, 0, pageWidth, 24, "F");
+    doc.addImage(logoDataUrl, "JPEG", 10, 4, 16, 16);
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(15);
-    doc.text("Libertad National High School", 10, 10);
+    doc.text("Libertad National High School", 30, 10);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(`Senior High School - Schedule Timetable | School Year ${SCHOOL_YEAR}`, 10, 17);
+    doc.text(`Senior High School - Schedule Timetable | School Year ${SCHOOL_YEAR}`, 30, 17);
     doc.setFontSize(8.5);
     doc.text(`Generated: ${generatedAt}`, pageWidth - 10, 10, { align: "right" });
 
