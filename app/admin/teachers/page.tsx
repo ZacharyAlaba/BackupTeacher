@@ -572,15 +572,14 @@ export default function TeachersPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1100px] table-fixed">
+              <table className="w-full min-w-[800px] table-fixed">
                 <colgroup>
-                  <col className="w-[12%]" />
-                  <col className="w-[10%]" />
-                  <col className="w-[10%]" />
-                  <col className="w-[20%]" />
-                  <col className="w-[20%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[16%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[11%]" />
+                  <col className="w-[11%]" />
+                  <col className="w-[28%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[22%]" />
                 </colgroup>
                 <thead>
                   <tr className="border-b border-slate-700 bg-slate-900">
@@ -588,7 +587,6 @@ export default function TeachersPage() {
                     <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">First Name</th>
                     <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Last Name</th>
                     <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Email</th>
-                    <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Gov. Email</th>
                     <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Created</th>
                     <th className="whitespace-nowrap px-2 py-2 text-right text-xs font-semibold text-slate-300">Actions</th>
                   </tr>
@@ -600,7 +598,6 @@ export default function TeachersPage() {
                       <td className="px-2 py-2 text-xs text-white">{teacher.user.name.trim().split(/\s+/)[0]}</td>
                       <td className="px-2 py-2 text-xs text-white">{teacher.user.name.trim().split(/\s+/).slice(1).join(" ") || "-"}</td>
                       <td className="break-all px-2 py-2 text-xs text-slate-400">{teacher.user.email}</td>
-                      <td className="break-all px-2 py-2 text-xs text-slate-400">{teacher.governmentEmail || "-"}</td>
                       <td className="whitespace-nowrap px-2 py-2 text-xs text-slate-400">
                         {new Date(teacher.createdAt).toLocaleDateString()}
                       </td>
