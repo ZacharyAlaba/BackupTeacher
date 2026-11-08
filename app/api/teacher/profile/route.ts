@@ -10,33 +10,67 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const teacher = await prisma.teacher.findUnique({
-      where: { userId: session.user.id },
-      include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
+    try {
+      const teacher = await prisma.teacher.findUnique({
+        where: { userId: session.user.id },
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    if (!teacher) {
-      return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
+      if (!teacher) {
+        return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
+      }
+
+      return NextResponse.json({
+        id: teacher.id,
+        teacherId: teacher.teacherId,
+        name: teacher.user.name,
+        email: teacher.user.email,
+        governmentEmail: (teacher as any).governmentEmail ?? null,
+        dateOfBirth: teacher.dateOfBirth?.toISOString().split("T")[0] ?? null,
+        gender: teacher.gender,
+        phone: teacher.phone,
+        address: teacher.address,
+      });
+    } catch (error: any) {
+      if (!error || !error.message || !error.message.includes("governmentEmail") || !error.message.includes("column")) {
+        throw error;
+      }
+
+      const teacher = await prisma.teacher.findUnique({
+        where: { userId: session.user.id },
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      if (!teacher) {
+        return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
+      }
+
+      return NextResponse.json({
+        id: teacher.id,
+        teacherId: teacher.teacherId,
+        name: teacher.user.name,
+        email: teacher.user.email,
+        governmentEmail: null,
+        dateOfBirth: teacher.dateOfBirth?.toISOString().split("T")[0] ?? null,
+        gender: teacher.gender,
+        phone: teacher.phone,
+        address: teacher.address,
+      });
     }
-
-    return NextResponse.json({
-      id: teacher.id,
-      teacherId: teacher.teacherId,
-      name: teacher.user.name,
-      email: teacher.user.email,
-      governmentEmail: teacher.governmentEmail,
-      dateOfBirth: teacher.dateOfBirth?.toISOString().split("T")[0] ?? null,
-      gender: teacher.gender,
-      phone: teacher.phone,
-      address: teacher.address,
-    });
   } catch (error) {
     console.error("Failed to fetch teacher profile:", error);
     return NextResponse.json({ error: "Failed to fetch profile" }, { status: 500 });
@@ -58,24 +92,48 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Invalid date of birth" }, { status: 400 });
     }
 
-    const teacher = await prisma.teacher.update({
-      where: { userId: session.user.id },
-      data: {
-        governmentEmail: typeof governmentEmail === "string" ? governmentEmail.trim() || null : null,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-        gender: gender || null,
-        phone: phone || null,
-        address: address || null,
-      },
-    });
+    try {
+      const teacher = await prisma.teacher.update({
+        where: { userId: session.user.id },
+        data: {
+          governmentEmail: typeof governmentEmail === "string" ? governmentEmail.trim() || null : null,
+          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+          gender: gender || null,
+          phone: phone || null,
+          address: address || null,
+        },
+      });
 
-    return NextResponse.json({
-      governmentEmail: teacher.governmentEmail,
-      dateOfBirth: teacher.dateOfBirth?.toISOString().split("T")[0] ?? null,
-      gender: teacher.gender,
-      phone: teacher.phone,
-      address: teacher.address,
-    });
+      return NextResponse.json({
+        governmentEmail: teacher.governmentEmail,
+        dateOfBirth: teacher.dateOfBirth?.toISOString().split("T")[0] ?? null,
+        gender: teacher.gender,
+        phone: teacher.phone,
+        address: teacher.address,
+      });
+    } catch (error: any) {
+      if (error && error.message && error.message.includes("governmentEmail") && error.message.includes("column")) {
+        const teacher = await prisma.teacher.update({
+          where: { userId: session.user.id },
+          data: {
+            dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+            gender: gender || null,
+            phone: phone || null,
+            address: address || null,
+          },
+        });
+
+        return NextResponse.json({
+          governmentEmail: null,
+          dateOfBirth: teacher.dateOfBirth?.toISOString().split("T")[0] ?? null,
+          gender: teacher.gender,
+          phone: teacher.phone,
+          address: teacher.address,
+        });
+      }
+
+      throw error;
+    }
   } catch (error) {
     console.error("Failed to update teacher profile:", error);
     return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });

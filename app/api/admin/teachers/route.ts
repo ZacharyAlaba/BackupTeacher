@@ -23,19 +23,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const teachers = await prisma.teacher.findMany({
-        select: {
-          id: true,
-          teacherId: true,
-          governmentEmail: true,
-          createdAt: true,
-          user: { select: { name: true, email: true } },
-          qualifications: { select: { subjectId: true } },
-        },
-      orderBy: { createdAt: "desc" },
-    });
+    const baseSelect = {
+      id: true,
+      teacherId: true,
+      createdAt: true,
+      user: { select: { name: true, email: true } },
+      qualifications: { select: { subjectId: true } },
+    } as const;
 
-    return NextResponse.json(teachers);
+    try {
+      const teachers = await prisma.teacher.findMany({
+        select: {
+          ...baseSelect,
+          governmentEmail: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      return NextResponse.json(teachers);
+    } catch (error: any) {
+      if (!error || !error.message || !error.message.includes("governmentEmail") || !error.message.includes("column")) {
+        throw error;
+      }
+
+      const teachers = await prisma.teacher.findMany({
+        select: baseSelect,
+        orderBy: { createdAt: "desc" },
+      });
+
+      return NextResponse.json(
+        teachers.map((teacher) => ({
+          ...teacher,
+          governmentEmail: null,
+        }))
+      );
+    }
   } catch (error) {
     console.error("Teachers fetch error:", error);
     return NextResponse.json({ error: "Failed to fetch teachers" }, { status: 500 });
@@ -148,16 +170,32 @@ export async function PUT(request: NextRequest) {
     });
 
     // Update teacher profile fields
-    await prisma.teacher.update({
-      where: { id },
-      data: {
-        ...(governmentEmail !== undefined && { governmentEmail: normalizedGovernmentEmail }),
-        ...(dateOfBirth && { dateOfBirth: new Date(dateOfBirth) }),
-        ...(gender && { gender }),
-        ...(phone && { phone }),
-        ...(address && { address }),
-      },
-    });
+    try {
+      await prisma.teacher.update({
+        where: { id },
+        data: {
+          ...(governmentEmail !== undefined && { governmentEmail: normalizedGovernmentEmail }),
+          ...(dateOfBirth && { dateOfBirth: new Date(dateOfBirth) }),
+          ...(gender && { gender }),
+          ...(phone && { phone }),
+          ...(address && { address }),
+        },
+      });
+    } catch (error: any) {
+      if (error && error.message && error.message.includes("governmentEmail") && error.message.includes("column")) {
+        await prisma.teacher.update({
+          where: { id },
+          data: {
+            ...(dateOfBirth && { dateOfBirth: new Date(dateOfBirth) }),
+            ...(gender && { gender }),
+            ...(phone && { phone }),
+            ...(address && { address }),
+          },
+        });
+      } else {
+        throw error;
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
