@@ -588,7 +588,7 @@ export default function TeachersPage() {
                     <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Last Name</th>
                     <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Email</th>
                     <th className="whitespace-nowrap px-2 py-2 text-left text-xs font-semibold text-slate-300">Created</th>
-                    <th className="whitespace-nowrap px-2 py-2 text-right text-xs font-semibold text-slate-300">Actions</th>
+                    <th className="whitespace-nowrap px-2 py-2 text-center text-xs font-semibold text-slate-300">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -601,7 +601,7 @@ export default function TeachersPage() {
                       <td className="whitespace-nowrap px-2 py-2 text-xs text-slate-400">
                         {new Date(teacher.createdAt).toLocaleDateString()}
                       </td>
-                      <td className="whitespace-nowrap px-2 py-2 text-right">
+                      <td className="whitespace-nowrap px-2 py-2 text-center">
                         <button
                           onClick={() => handleEdit(teacher)}
                           className="mr-1 rounded bg-indigo-600 px-2 py-1 text-xs text-white hover:bg-indigo-700"
