@@ -1055,8 +1055,8 @@ export default function TeacherAttendancePage() {
                 </div>
               </div>
 
-              <div className="overflow-x-auto xl:overflow-x-hidden">
-                <table className="min-w-[1080px] w-full table-fixed border-separate border-spacing-0 text-left xl:min-w-0">
+              <div className="overflow-x-auto md:overflow-x-hidden">
+                <table className="min-w-[760px] w-full table-fixed border-separate border-spacing-0 text-left md:min-w-0">
                   <colgroup>
                     <col className="w-[30%]" />
                     {visibleAttendanceDates.map((date) => <col key={date.value} className="w-[8.5%]" />)}
