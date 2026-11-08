@@ -251,11 +251,40 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Schedule ID required" }, { status: 400 });
     }
 
-    await prisma.scheduleBlock.delete({
-      where: { id },
+    const result = await prisma.$transaction(async (transaction) => {
+      const selectedSchedule = await transaction.scheduleBlock.findUnique({
+        where: { id },
+        select: { sectionId: true, subjectId: true },
+      });
+
+      if (!selectedSchedule) {
+        return null;
+      }
+
+      const attendance = await transaction.attendanceRecord.deleteMany({
+        where: {
+          sectionId: selectedSchedule.sectionId,
+          subjectId: selectedSchedule.subjectId,
+        },
+      });
+      const schedules = await transaction.scheduleBlock.deleteMany({
+        where: {
+          sectionId: selectedSchedule.sectionId,
+          subjectId: selectedSchedule.subjectId,
+        },
+      });
+
+      return {
+        deletedSchedules: schedules.count,
+        deletedAttendanceRecords: attendance.count,
+      };
     });
 
-    return NextResponse.json({ success: true });
+    if (!result) {
+      return NextResponse.json({ error: "Schedule assignment not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, ...result });
   } catch (error) {
     console.error("Schedule deletion error:", error);
     return NextResponse.json({ error: "Failed to delete schedule" }, { status: 500 });

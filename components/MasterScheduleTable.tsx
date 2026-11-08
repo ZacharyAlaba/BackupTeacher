@@ -1107,31 +1107,22 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
   }
 
   async function handleDelete(scheduleId: string) {
-    if (!confirm("Remove this teacher assignment?")) return;
+    if (!confirm("Remove this teacher assignment? This will permanently delete all saved attendance records for this subject and section.")) return;
 
     try {
-      const selectedSchedule = schedules.find((schedule) => schedule.id === scheduleId);
-      const schedulesToDelete = selectedSchedule
-        ? schedules.filter(
-            (schedule) =>
-              schedule.section.id === selectedSchedule.section.id &&
-              schedule.subject.id === selectedSchedule.subject.id
-          )
-        : schedules.filter((schedule) => schedule.id === scheduleId);
+      const response = await fetch(`/api/admin/schedules?id=${scheduleId}`, {
+        method: "DELETE",
+      });
 
-      const responses = await Promise.all(
-        schedulesToDelete.map((schedule) =>
-          fetch(`/api/admin/schedules?id=${schedule.id}`, {
-            method: "DELETE",
-          })
-        )
-      );
-
-      if (responses.every((response) => response.ok)) {
-        setSuccess(`Removed ${schedulesToDelete.length} teacher assignment(s)`);
+      if (response.ok) {
+        const result = await response.json();
+        setSuccess(
+          `Removed ${result.deletedSchedules} teacher assignment(s) and permanently deleted ${result.deletedAttendanceRecords} attendance record(s)`
+        );
         loadData();
       } else {
-        setError("Failed to remove assignment");
+        const result = await response.json();
+        setError(result.error || "Failed to remove assignment");
       }
     } catch (error) {
       setError("Error removing assignment");
