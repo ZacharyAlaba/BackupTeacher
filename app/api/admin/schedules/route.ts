@@ -14,7 +14,12 @@ export async function GET(request: NextRequest) {
 
     const schedules = await prisma.scheduleBlock.findMany({
       include: {
-        teacher: { include: { user: true } },
+        teacher: {
+          select: {
+            id: true,
+            user: { select: { name: true, email: true } },
+          },
+        },
         subject: true,
         section: true,
         timeSlot: true,
@@ -165,7 +170,12 @@ export async function POST(request: NextRequest) {
             room: roomRecord?.name ?? room ?? null,
           },
           include: {
-            teacher: { include: { user: true } },
+            teacher: {
+              select: {
+                id: true,
+                user: { select: { name: true, email: true } },
+              },
+            },
             subject: true,
             section: true,
             timeSlot: true,
@@ -208,7 +218,12 @@ export async function PUT(request: NextRequest) {
         ...(room !== undefined && { room: room || null }),
       },
       include: {
-        teacher: { include: { user: true } },
+        teacher: {
+          select: {
+            id: true,
+            user: { select: { name: true, email: true } },
+          },
+        },
         subject: true,
         section: true,
         timeSlot: true,

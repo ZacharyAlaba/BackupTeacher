@@ -232,7 +232,7 @@ export default function Timetable({ schedule, timeSlots, compact = false }: Time
                                           {item.section}
                                         </div>
                                         {item.room && (
-                                          <div className={`mt-1 inline-block rounded bg-slate-900 px-1 py-0.5 ${compact ? "text-[9px]" : "text-[10px]"} text-slate-300 light:bg-slate-200 light:text-slate-700`}>
+                                          <div className={`timetable-room-badge mt-1 inline-block rounded bg-slate-900 px-1 py-0.5 ${compact ? "text-[9px]" : "text-[10px]"} text-slate-300 light:bg-slate-200 light:text-slate-700`}>
                                             Room {item.room}
                                           </div>
                                         )}

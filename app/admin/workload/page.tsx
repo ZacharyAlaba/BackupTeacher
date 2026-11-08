@@ -9,68 +9,48 @@ interface TeacherWorkload {
   periods: number;
   subjects: string[];
   sections: string[];
-  workloadPercentage: number;
-  status: "underloaded" | "balanced" | "overloaded";
 }
 
 export default function WorkloadReportPage() {
   const router = useRouter();
   const [workloads, setWorkloads] = useState<TeacherWorkload[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadWorkloads();
   }, []);
 
   async function loadWorkloads() {
+    setLoading(true);
+    setError("");
     try {
-      const response = await fetch("/api/admin/workload");
-      if (response.ok) {
-        setWorkloads(await response.json());
+      const response = await fetch("/api/admin/workload", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load workload report");
       }
+
+      setWorkloads(data);
     } catch (error) {
       console.error("Failed to load workloads:", error);
+      setError(error instanceof Error ? error.message : "Failed to load workload report");
     } finally {
       setLoading(false);
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "underloaded":
-        return "bg-blue-900/20 border-blue-700 text-blue-300";
-      case "balanced":
-        return "bg-green-900/20 border-green-700 text-green-300";
-      case "overloaded":
-        return "bg-red-900/20 border-red-700 text-red-300";
-      default:
-        return "bg-slate-800 border-slate-700 text-slate-300";
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "underloaded":
-        return "⬇️ Underloaded";
-      case "balanced":
-        return "✅ Balanced";
-      case "overloaded":
-        return "⬆️ Overloaded";
-      default:
-        return "Unknown";
-    }
-  };
-
   const avgPeriods = workloads.length > 0 ? Math.round(workloads.reduce((a, b) => a + b.periods, 0) / workloads.length) : 0;
+  const assignedSubjectCount = new Set(workloads.flatMap((workload) => workload.subjects)).size;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-4 light:bg-none light:bg-slate-100 sm:p-8">
       <div className="w-full">
         {/* Header */}
         <div className="mb-8">
           <button
             onClick={() => router.back()}
-            className="mb-4 px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm"
+            className="mb-4 rounded-lg bg-slate-700 px-3 py-1 text-sm text-slate-300 hover:bg-slate-600 light:bg-slate-200 light:text-slate-800 light:hover:bg-slate-300"
           >
             ← Back
           </button>
@@ -79,59 +59,61 @@ export default function WorkloadReportPage() {
         </div>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-4 gap-4 mb-8">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+        <div className="grid grid-cols-1 gap-4 mb-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-xl border border-slate-700 bg-slate-800 p-4 light:border-slate-300 light:bg-white">
             <div className="text-sm text-slate-400 mb-1">Total Teachers</div>
             <div className="text-3xl font-bold text-white">{workloads.length}</div>
           </div>
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+          <div className="rounded-xl border border-slate-700 bg-slate-800 p-4 light:border-slate-300 light:bg-white">
             <div className="text-sm text-slate-400 mb-1">Avg Load</div>
             <div className="text-3xl font-bold text-white">{avgPeriods}</div>
             <div className="text-xs text-slate-500 mt-1">periods/week</div>
           </div>
-          <div className="bg-green-900/20 border border-green-700 rounded-xl p-4">
-            <div className="text-sm text-green-300 mb-1">Balanced</div>
-            <div className="text-3xl font-bold text-green-400">
-              {workloads.filter((w) => w.status === "balanced").length}
-            </div>
-          </div>
-          <div className="bg-red-900/20 border border-red-700 rounded-xl p-4">
-            <div className="text-sm text-red-300 mb-1">Issue</div>
-            <div className="text-3xl font-bold text-red-400">
-              {workloads.filter((w) => w.status !== "balanced").length}
-            </div>
+          <div className="rounded-xl border border-slate-700 bg-slate-800 p-4 light:border-slate-300 light:bg-white">
+            <div className="text-sm text-slate-400 mb-1">Subjects Assigned</div>
+            <div className="text-3xl font-bold text-white">{assignedSubjectCount}</div>
           </div>
         </div>
 
         {/* Workload Details */}
-        <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+        <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 light:border-slate-300 light:bg-white">
           {loading ? (
             <div className="p-8 text-center text-slate-400">Loading workload data...</div>
+          ) : error ? (
+            <div className="flex flex-col items-center gap-3 p-8 text-center">
+              <p className="text-red-300 light:text-red-700">{error}</p>
+              <button
+                type="button"
+                onClick={loadWorkloads}
+                className="rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white transition hover:bg-indigo-700"
+              >
+                Retry
+              </button>
+            </div>
           ) : workloads.length === 0 ? (
             <div className="p-8 text-center text-slate-400">No teachers with schedules yet</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-slate-700 bg-slate-900">
-                    <th className="px-6 py-3 text-left font-semibold text-slate-300">Teacher</th>
-                    <th className="px-6 py-3 text-left font-semibold text-slate-300">Periods/Week</th>
-                    <th className="px-6 py-3 text-left font-semibold text-slate-300">Subjects</th>
-                    <th className="px-6 py-3 text-left font-semibold text-slate-300">Sections</th>
-                    <th className="px-6 py-3 text-left font-semibold text-slate-300">Status</th>
+                  <tr className="border-b border-slate-700 bg-slate-900 light:border-slate-300 light:bg-slate-100">
+                    <th className="px-6 py-3 text-left font-semibold text-slate-300 light:text-slate-800">Teacher</th>
+                    <th className="px-6 py-3 text-left font-semibold text-slate-300 light:text-slate-800">Periods/Week</th>
+                    <th className="px-6 py-3 text-left font-semibold text-slate-300 light:text-slate-800">Subjects</th>
+                    <th className="px-6 py-3 text-left font-semibold text-slate-300 light:text-slate-800">Sections</th>
                   </tr>
                 </thead>
                 <tbody>
                   {workloads
                     .sort((a, b) => b.periods - a.periods)
                     .map((workload) => (
-                      <tr key={workload.teacherId} className="border-b border-slate-700 hover:bg-slate-700/50">
-                        <td className="px-6 py-3 font-medium text-white">{workload.teacherName}</td>
-                        <td className="px-6 py-3 text-white text-lg font-semibold">{workload.periods}</td>
-                        <td className="px-6 py-3 text-slate-300">
+                      <tr key={workload.teacherId} className="border-b border-slate-700 hover:bg-slate-700/50 light:border-slate-200 light:bg-white light:hover:bg-slate-50">
+                        <td className="px-6 py-3 font-medium text-white light:text-slate-900">{workload.teacherName}</td>
+                        <td className="px-6 py-3 text-lg font-semibold text-white light:text-slate-900">{workload.periods}</td>
+                        <td className="px-6 py-3 text-slate-300 light:text-slate-700">
                           <div className="flex flex-wrap gap-1">
                             {workload.subjects.slice(0, 3).map((subject, idx) => (
-                              <span key={idx} className="px-2 py-1 bg-indigo-900/50 text-indigo-300 rounded text-xs">
+                              <span key={idx} className="rounded border border-indigo-500/40 bg-indigo-900/50 px-2 py-1 text-xs font-medium text-indigo-300 light:border-indigo-200 light:bg-indigo-50 light:text-indigo-900">
                                 {subject}
                               </span>
                             ))}
@@ -142,24 +124,19 @@ export default function WorkloadReportPage() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-3 text-slate-300">
+                        <td className="px-6 py-3 text-slate-300 light:text-slate-700">
                           <div className="flex flex-wrap gap-1">
                             {workload.sections.slice(0, 2).map((section, idx) => (
-                              <span key={idx} className="px-2 py-1 bg-violet-900/50 text-violet-300 rounded text-xs">
+                              <span key={idx} className="rounded border border-violet-500/40 bg-violet-900/50 px-2 py-1 text-xs font-semibold text-violet-300 light:border-violet-300 light:bg-violet-100 light:text-violet-900">
                                 {section}
                               </span>
                             ))}
                             {workload.sections.length > 2 && (
-                              <span className="px-2 py-1 bg-slate-700 text-slate-400 rounded text-xs">
+                              <span className="rounded border border-slate-600 bg-slate-700 px-2 py-1 text-xs font-semibold text-slate-200 light:border-slate-300 light:bg-slate-100 light:text-slate-700">
                                 +{workload.sections.length - 2} more
                               </span>
                             )}
                           </div>
-                        </td>
-                        <td className="px-6 py-3">
-                          <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold border ${getStatusColor(workload.status)}`}>
-                            {getStatusLabel(workload.status)}
-                          </span>
                         </td>
                       </tr>
                     ))}
@@ -169,21 +146,6 @@ export default function WorkloadReportPage() {
           )}
         </div>
 
-        {/* Legend */}
-        <div className="mt-8 grid grid-cols-3 gap-4">
-          <div className="bg-blue-900/20 border border-blue-700 rounded-xl p-4">
-            <div className="text-blue-300 font-semibold mb-1">⬇️ Underloaded</div>
-            <p className="text-sm text-slate-400">Less than 18 periods/week. Consider adding more classes.</p>
-          </div>
-          <div className="bg-green-900/20 border border-green-700 rounded-xl p-4">
-            <div className="text-green-300 font-semibold mb-1">✅ Balanced</div>
-            <p className="text-sm text-slate-400">18-24 periods/week. Optimal teacher workload.</p>
-          </div>
-          <div className="bg-red-900/20 border border-red-700 rounded-xl p-4">
-            <div className="text-red-300 font-semibold mb-1">⬆️ Overloaded</div>
-            <p className="text-sm text-slate-400">More than 24 periods/week. May cause burnout.</p>
-          </div>
-        </div>
       </div>
     </div>
   );

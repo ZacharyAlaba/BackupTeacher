@@ -511,13 +511,13 @@ export default function AdminDashboard() {
                   <div className="w-full">
                     <div className="flex justify-center mb-5">
                       <div className="relative" style={{ width: '180px', height: '180px' }}>
-                        <svg width="180" height="180" viewBox="0 0 220 220" className="drop-shadow-lg">
+                        <svg width="180" height="180" viewBox="0 0 220 220" className="drop-shadow-sm">
                           {gradeStats.map((item, index) => {
                             const total = gradeStats.reduce((sum, s) => sum + s.value, 0);
                             const percentage = item.value / total;
                             let startAngle = gradeStats.slice(0, index).reduce((sum, s) => sum + (s.value / total) * 360, 0);
                             const endAngle = startAngle + percentage * 360;
-                            const colors = ['#3b82f6', '#ef4444'];
+                            const colors = ['#7f9fc9', '#d58b8b'];
                             const color = colors[index % colors.length];
                             
                             const radius = 65;
@@ -537,18 +537,18 @@ export default function AdminDashboard() {
                             const largeArc = endAngle - startAngle > 180 ? 1 : 0;
                             const d = `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${x4} ${y4} Z`;
                             
-                            return <path key={index} d={d} fill={color} stroke="#0f172a" strokeWidth="2" />;
+                            return <path key={index} d={d} fill={color} stroke="#f8fafc" strokeWidth="1.5" />;
                           })}
                         </svg>
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <div className="text-2xl font-bold text-white light:text-slate-900">{gradeStats.reduce((sum, s) => sum + s.value, 0)}</div>
-                          <div className="text-xs text-slate-400 uppercase tracking-wider">Total</div>
+                          <div className="text-xl font-medium text-white light:text-slate-900">{gradeStats.reduce((sum, s) => sum + s.value, 0)}</div>
+                          <div className="text-xs text-slate-400">Total</div>
                         </div>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3 mt-4">
                       {gradeStats.map((item, index) => {
-                        const colors = ['#3b82f6', '#ef4444'];
+                        const colors = ['#7f9fc9', '#d58b8b'];
                         const color = colors[index % colors.length];
                         const total = gradeStats.reduce((sum, s) => sum + s.value, 0);
                         const percentage = total > 0 ? ((item.value / total) * 100).toFixed(0) : '0';
@@ -578,13 +578,13 @@ export default function AdminDashboard() {
                   <div className="w-full">
                     <div className="flex justify-center mb-5">
                       <div className="relative" style={{ width: '180px', height: '180px' }}>
-                        <svg width="180" height="180" viewBox="0 0 220 220" className="drop-shadow-lg">
+                        <svg width="180" height="180" viewBox="0 0 220 220" className="drop-shadow-sm">
                           {strandStats.map((item, index) => {
                             const total = strandStats.reduce((sum, s) => sum + s.value, 0);
                             const percentage = item.value / total;
                             let startAngle = strandStats.slice(0, index).reduce((sum, s) => sum + (s.value / total) * 360, 0);
                             const endAngle = startAngle + percentage * 360;
-                            const colors = ['#06b6d4', '#ec4899', '#10b981', '#f97316'];
+                            const colors = ['#75afb8', '#ce8eaa', '#78b59a', '#d5a267'];
                             const color = colors[index % colors.length];
                             
                             const radius = 65;
@@ -604,18 +604,18 @@ export default function AdminDashboard() {
                             const largeArc = endAngle - startAngle > 180 ? 1 : 0;
                             const d = `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${x4} ${y4} Z`;
                             
-                            return <path key={index} d={d} fill={color} stroke="#0f172a" strokeWidth="2" />;
+                            return <path key={index} d={d} fill={color} stroke="#f8fafc" strokeWidth="1.5" />;
                           })}
                         </svg>
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <div className="text-2xl font-bold text-white light:text-slate-900">{strandStats.reduce((sum, s) => sum + s.value, 0)}</div>
-                          <div className="text-xs text-slate-400 uppercase tracking-wider">Sections</div>
+                          <div className="text-xl font-medium text-white light:text-slate-900">{strandStats.reduce((sum, s) => sum + s.value, 0)}</div>
+                          <div className="text-xs text-slate-400">Sections</div>
                         </div>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3 mt-4">
                       {strandStats.map((item, index) => {
-                        const colors = ['#06b6d4', '#ec4899', '#10b981', '#f97316'];
+                        const colors = ['#75afb8', '#ce8eaa', '#78b59a', '#d5a267'];
                         const color = colors[index % colors.length];
                         const total = strandStats.reduce((sum, s) => sum + s.value, 0);
                         const percentage = total > 0 ? ((item.value / total) * 100).toFixed(0) : '0';

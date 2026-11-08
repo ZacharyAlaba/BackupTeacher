@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Fragment, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 interface Subject {
@@ -78,6 +78,16 @@ export default function SubjectsPage() {
     setEditingId(subject.id);
     setShowForm(true);
   }
+
+  const groupedSubjects = ["G11", "G12"].map((gradeLevel) => ({
+    gradeLevel,
+    subjects: subjects
+      .filter((subject) => subject.gradeLevel === gradeLevel)
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  }));
+  const otherSubjects = subjects
+    .filter((subject) => !["G11", "G12"].includes(subject.gradeLevel))
+    .sort((a, b) => a.gradeLevel.localeCompare(b.gradeLevel) || a.name.localeCompare(b.name));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 p-8">
@@ -171,31 +181,49 @@ export default function SubjectsPage() {
                   <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Name</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Grade Level</th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-slate-300">Track</th>
-                  <th className="px-6 py-3 text-right text-sm font-semibold text-slate-300">Actions</th>
+                  <th className="px-6 py-3 text-center text-sm font-semibold text-slate-300">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {subjects.map((subject) => (
-                  <tr key={subject.id} className="border-b border-slate-700 hover:bg-slate-700/50">
-                    <td className="px-6 py-3 text-white">{subject.name}</td>
-                    <td className="px-6 py-3 text-slate-400">{subject.gradeLevel}</td>
-                    <td className="px-6 py-3 text-slate-400">{subject.track || "All"}</td>
-                    <td className="px-6 py-3 text-right space-x-2">
-                      <button
-                        onClick={() => handleEdit(subject)}
-                        className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(subject.id)}
-                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {[...groupedSubjects, ...(otherSubjects.length ? [{ gradeLevel: "Other", subjects: otherSubjects }] : [])].map(
+                  ({ gradeLevel, subjects: gradeSubjects }) =>
+                    gradeSubjects.length > 0 && (
+                      <Fragment key={gradeLevel}>
+                        <tr className="border-b border-slate-700 bg-slate-700/70 light:border-slate-300 light:bg-slate-100">
+                          <th
+                            colSpan={4}
+                            className="px-6 py-2 text-left text-sm font-bold text-white light:text-slate-800"
+                          >
+                            {gradeLevel === "Other" ? "Other Grade Levels" : `Grade ${gradeLevel.slice(1)}`}
+                            <span className="ml-2 font-normal text-slate-300 light:text-slate-600">
+                              ({gradeSubjects.length} subjects)
+                            </span>
+                          </th>
+                        </tr>
+                        {gradeSubjects.map((subject) => (
+                          <tr key={subject.id} className="border-b border-slate-700 hover:bg-slate-700/50">
+                            <td className="px-6 py-3 text-white">{subject.name}</td>
+                            <td className="px-6 py-3 text-slate-400">{subject.gradeLevel}</td>
+                            <td className="px-6 py-3 text-slate-400">{subject.track || "All"}</td>
+                            <td className="space-x-2 px-6 py-3 text-right">
+                              <button
+                                onClick={() => handleEdit(subject)}
+                                className="rounded bg-indigo-600 px-3 py-1 text-sm text-white hover:bg-indigo-700"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(subject.id)}
+                                className="rounded bg-red-600 px-3 py-1 text-sm text-white hover:bg-red-700"
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    )
+                )}
               </tbody>
             </table>
           )}

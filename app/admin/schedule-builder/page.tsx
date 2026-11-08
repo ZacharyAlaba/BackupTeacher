@@ -354,7 +354,7 @@ export default function ScheduleBuilderPage() {
           >
             ← Back
           </button>
-          <h1 className="text-3xl font-bold text-white mb-1">Schedule Builder</h1>
+          <h1 className="text-3xl font-bold text-white mb-1">Class Schedule</h1>
           <p className="text-slate-400">Assign teachers to classes and manage schedules</p>
         </div>
 

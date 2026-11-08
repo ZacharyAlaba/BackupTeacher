@@ -250,7 +250,7 @@ export default function TeachersPage() {
           <div className="flex items-start gap-4">
             <div className="flex-shrink-0 text-3xl">👥</div>
             <div className="flex-1">
-              <h3 className="text-lg font-bold text-white mb-2">How to Add Teachers</h3>
+              <h3 id="teacher-add-instructions-title" className="mb-2 text-lg font-bold text-white light:text-slate-900">How to Add Teachers</h3>
               <p className="text-slate-300 mb-4">
                 Teachers can either sign up through the signup page or be added directly from this admin panel. Admin-created teacher accounts receive a temporary password by email.
               </p>

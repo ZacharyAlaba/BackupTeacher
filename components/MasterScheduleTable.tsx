@@ -1209,6 +1209,7 @@ export default function MasterScheduleTable({ onSchedulesUpdate }: MasterSchedul
                   <button
                     key={section.id}
                     type="button"
+                    data-selected={index === selectedSectionIndex}
                     onClick={() => {
                       setSelectedSectionIndex(index);
                       setShowSectionMenu(false);

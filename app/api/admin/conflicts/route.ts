@@ -4,13 +4,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+const scheduleSelect = {
+  id: true,
+  teacherId: true,
+  sectionId: true,
+  timeSlotId: true,
+  teacher: {
+    select: {
+      user: { select: { name: true } },
+    },
+  },
+  subject: { select: { name: true } },
+  section: { select: { name: true } },
+  timeSlot: {
+    select: {
+      day: true,
+      startTime: true,
+      endTime: true,
+    },
+  },
+} satisfies Prisma.ScheduleBlockSelect;
+
 type ScheduleWithRelations = Prisma.ScheduleBlockGetPayload<{
-  include: {
-    teacher: { include: { user: true } };
-    subject: true;
-    section: true;
-    timeSlot: true;
-  };
+  select: typeof scheduleSelect;
 }>;
 
 export async function GET(request: NextRequest) {
@@ -21,81 +37,73 @@ export async function GET(request: NextRequest) {
     }
 
     const schedules: ScheduleWithRelations[] = await prisma.scheduleBlock.findMany({
-      include: {
-        teacher: { include: { user: true } },
-        subject: true,
-        section: true,
-        timeSlot: true,
-      },
+      select: scheduleSelect,
     });
 
-    const conflicts: any[] = [];
-    const teacherWorkload: { [key: string]: number } = {};
+    type ConflictResult = {
+      type: "TEACHER_CONFLICT" | "SECTION_CONFLICT";
+      description: string;
+      schedules: Array<{
+        id: string;
+        teacher: string;
+        subject: string;
+        section: string;
+        time: string;
+      }>;
+    };
+    const conflicts: ConflictResult[] = [];
+    const teacherWorkload = new Map<string, number>();
+    const teacherSlots = new Map<string, ScheduleWithRelations[]>();
+    const sectionSlots = new Map<string, ScheduleWithRelations[]>();
 
-    // Check for teacher conflicts
     for (const schedule of schedules) {
-      const teacherId = schedule.teacherId;
-      const timeSlotId = schedule.timeSlotId;
-
-      // Count workload
-      if (!teacherWorkload[teacherId]) {
-        teacherWorkload[teacherId] = 0;
-      }
-      teacherWorkload[teacherId]++;
-
-      // Find other schedules at same time for same teacher
-      const duplicates = schedules.filter(
-        (s) =>
-          s.teacherId === teacherId &&
-          s.timeSlotId === timeSlotId &&
-          s.id !== schedule.id
+      teacherWorkload.set(
+        schedule.teacherId,
+        (teacherWorkload.get(schedule.teacherId) ?? 0) + 1
       );
 
-      if (duplicates.length > 0) {
+      const teacherKey = `${schedule.teacherId}:${schedule.timeSlotId}`;
+      const teacherGroup = teacherSlots.get(teacherKey) ?? [];
+      teacherGroup.push(schedule);
+      teacherSlots.set(teacherKey, teacherGroup);
+
+      const sectionKey = `${schedule.sectionId}:${schedule.timeSlotId}`;
+      const sectionGroup = sectionSlots.get(sectionKey) ?? [];
+      sectionGroup.push(schedule);
+      sectionSlots.set(sectionKey, sectionGroup);
+    }
+
+    const toConflictSchedule = (schedule: ScheduleWithRelations) => ({
+      id: schedule.id,
+      teacher: schedule.teacher.user.name,
+      subject: schedule.subject.name,
+      section: schedule.section.name,
+      time: `${schedule.timeSlot.day} ${schedule.timeSlot.startTime}-${schedule.timeSlot.endTime}`,
+    });
+
+    for (const group of Array.from(teacherSlots.values())) {
+      if (group.length > 1) {
         conflicts.push({
           type: "TEACHER_CONFLICT",
-          description: `${schedule.teacher.user.name} has overlapping classes`,
-          schedules: [schedule, ...duplicates].map((s) => ({
-            id: s.id,
-            teacher: s.teacher.user.name,
-            subject: s.subject.name,
-            section: s.section.name,
-            time: `${s.timeSlot.day} ${s.timeSlot.startTime}-${s.timeSlot.endTime}`,
-          })),
+          description: `${group[0].teacher.user.name} has overlapping classes`,
+          schedules: group.map(toConflictSchedule),
         });
       }
     }
 
-    // Check for section conflicts
-    for (const schedule of schedules) {
-      const sectionId = schedule.sectionId;
-      const timeSlotId = schedule.timeSlotId;
-
-      const duplicates = schedules.filter(
-        (s) =>
-          s.sectionId === sectionId &&
-          s.timeSlotId === timeSlotId &&
-          s.id !== schedule.id
-      );
-
-      if (duplicates.length > 0) {
+    for (const group of Array.from(sectionSlots.values())) {
+      if (group.length > 1) {
         conflicts.push({
           type: "SECTION_CONFLICT",
-          description: `${schedule.section.name} has multiple teachers at same time`,
-          schedules: [schedule, ...duplicates].map((s) => ({
-            id: s.id,
-            teacher: s.teacher.user.name,
-            subject: s.subject.name,
-            section: s.section.name,
-            time: `${s.timeSlot.day} ${s.timeSlot.startTime}-${s.timeSlot.endTime}`,
-          })),
+          description: `${group[0].section.name} has multiple teachers at the same time`,
+          schedules: group.map(toConflictSchedule),
         });
       }
     }
 
     // Find overloaded teachers (more than 24 periods/week)
-    const overloadedTeachers = Object.entries(teacherWorkload)
-      .filter(([_, count]) => (count as number) > 24)
+    const overloadedTeachers = Array.from(teacherWorkload.entries())
+      .filter(([, count]) => count > 24)
       .map(([teacherId, count]) => {
         const teacher = schedules.find((s) => s.teacherId === teacherId)?.teacher;
         return {
@@ -106,16 +114,11 @@ export async function GET(request: NextRequest) {
         };
       });
 
-    // Remove duplicate conflicts
-    const uniqueConflicts = Array.from(
-      new Map(conflicts.map((c) => [JSON.stringify(c), c])).values()
-    );
-
     return NextResponse.json({
-      conflicts: uniqueConflicts,
+      conflicts,
       warnings: overloadedTeachers,
       totalSchedules: schedules.length,
-      affectedTeachers: Object.keys(teacherWorkload).length,
+      affectedTeachers: teacherWorkload.size,
     });
   } catch (error) {
     console.error("Conflict detection error:", error);

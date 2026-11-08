@@ -102,13 +102,103 @@ html.light .admin-shell .text-white:not(button) {
   color: #10243a !important;
 }
 
+html.light .admin-shell #teacher-add-instructions-title {
+  color: #10243a !important;
+}
+
 html.light .admin-shell .text-amber-100,
 html.light .admin-shell .text-amber-200\/70 {
   color: #8a4b08 !important;
 }
 
+html.light .admin-shell [class*="text-slate-400"] {
+  color: #475569 !important;
+}
+
+html.light .admin-shell [class*="text-slate-300"],
+html.light .admin-shell [class*="text-slate-200"] {
+  color: #334155 !important;
+}
+
+html.light .admin-shell [class*="text-red-300"],
+html.light .admin-shell [class*="text-red-200"],
+html.light .admin-shell [class*="text-red-400"] {
+  color: #b91c1c !important;
+}
+
+html.light .admin-shell [class*="text-green-300"],
+html.light .admin-shell [class*="text-green-200"],
+html.light .admin-shell [class*="text-green-400"],
+html.light .admin-shell [class*="text-emerald-200"],
+html.light .admin-shell [class*="text-emerald-300"],
+html.light .admin-shell [class*="text-emerald-400"] {
+  color: #15803d !important;
+}
+
+html.light .admin-shell [class*="text-yellow-300"],
+html.light .admin-shell [class*="text-yellow-200"],
+html.light .admin-shell [class*="text-yellow-400"],
+html.light .admin-shell [class*="text-amber-300"],
+html.light .admin-shell [class*="text-amber-200"]:not([class*="text-amber-200/70"]),
+html.light .admin-shell [class*="text-amber-400"] {
+  color: #854d0e !important;
+}
+
+html.light .admin-shell [class*="text-blue-300"],
+html.light .admin-shell [class*="text-blue-200"],
+html.light .admin-shell [class*="text-blue-400"] {
+  color: #1d4ed8 !important;
+}
+
+html.light .admin-shell [class*="text-indigo-300"],
+html.light .admin-shell [class*="text-indigo-200"],
+html.light .admin-shell [class*="text-indigo-400"] {
+  color: #4338ca !important;
+}
+
+html.light .admin-shell [class*="text-orange-300"],
+html.light .admin-shell [class*="text-orange-200"],
+html.light .admin-shell [class*="text-orange-400"] {
+  color: #c2410c !important;
+}
+
+html.light .admin-shell [class*="text-cyan-300"],
+html.light .admin-shell [class*="text-cyan-200"],
+html.light .admin-shell [class*="text-cyan-400"] {
+  color: #0e7490 !important;
+}
+
+html.light .admin-shell [class*="text-pink-300"],
+html.light .admin-shell [class*="text-pink-200"],
+html.light .admin-shell [class*="text-pink-400"] {
+  color: #be185d !important;
+}
+
+html.light .admin-shell [class*="text-purple-300"],
+html.light .admin-shell [class*="text-purple-200"],
+html.light .admin-shell [class*="text-purple-400"] {
+  color: #7e22ce !important;
+}
+
 html.light .admin-shell .bg-amber-50\/10 {
   background-color: #fff8e7 !important;
+}
+
+html.light .admin-shell [class*="bg-red-900"] {
+  background-color: #fef2f2 !important;
+}
+
+html.light .admin-shell [class*="bg-yellow-900"] {
+  background-color: #fffbeb !important;
+}
+
+html.light .admin-shell [class*="bg-green-900"] {
+  background-color: #f0fdf4 !important;
+}
+
+html.light .admin-shell [class*="bg-blue-900"],
+html.light .admin-shell [class*="bg-indigo-900"] {
+  background-color: #eff6ff !important;
 }
 
 html.light .admin-shell [class*="bg-slate-900"],
@@ -142,6 +232,72 @@ html.light .admin-shell textarea {
   background-color: #ffffff !important;
   color: #10243a !important;
   border-color: #b2c7d5 !important;
+}
+
+html.light .admin-shell input::placeholder,
+html.light .admin-shell textarea::placeholder {
+  color: #64748b !important;
+  opacity: 1;
+}
+
+html.light .admin-shell #section-picker-options {
+  background-color: #ffffff !important;
+  border-color: #b2c7d5 !important;
+}
+
+html.light .admin-shell #section-picker-options button {
+  color: #334155 !important;
+}
+
+html.light .admin-shell #section-picker-options button[data-selected="true"] {
+  background-color: #dbeafe !important;
+  color: #1e3a8a !important;
+}
+
+html.light .admin-shell #section-picker-options button:hover {
+  background-color: #e2e8f0 !important;
+  color: #10243a !important;
+}
+
+html.light .admin-shell .timetable-room-badge {
+  background-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html.light .admin-shell [class*="bg-slate-700"][class*="text-white"] {
+  background-color: #dbe6ee !important;
+  color: #10243a !important;
+}
+
+html.light .admin-shell [class*="bg-slate-700"][class*="text-white"]:hover {
+  background-color: #cbd9e3 !important;
+  color: #10243a !important;
+}
+
+html.light .admin-shell [class*="bg-indigo-"][class*="text-white"],
+html.light .admin-shell [class*="bg-blue-"][class*="text-white"],
+html.light .admin-shell [class*="bg-green-"][class*="text-white"],
+html.light .admin-shell [class*="bg-red-"][class*="text-white"] {
+  color: #ffffff !important;
+}
+
+html:not(.light) .admin-shell #section-picker-options {
+  background-color: #0a1f36 !important;
+  border-color: #397092 !important;
+}
+
+html:not(.light) .admin-shell #section-picker-options button {
+  color: #e0edf8 !important;
+}
+
+html:not(.light) .admin-shell #section-picker-options button[data-selected="true"] {
+  background-color: #4f46e5 !important;
+  color: #ffffff !important;
+}
+
+html:not(.light) .admin-shell #section-picker-options button:hover {
+  background-color: #1d4261 !important;
+  color: #ffffff !important;
 }
 
 html.light .admin-shell table thead,

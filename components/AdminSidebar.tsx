@@ -12,7 +12,6 @@ import {
   GraduationCap,
   Clock,
   BarChart3,
-  Database,
   LogOut,
   ShieldAlert,
   MapPin,
@@ -27,7 +26,7 @@ export default function AdminSidebar() {
 
   const navItems: { label: string; href: string; icon: LucideIcon; color: string }[] = [
     { label: "Dashboard", href: "/admin", icon: LayoutDashboard, color: "text-blue-400" },
-    { label: "Schedule Builder", href: "/admin/schedule-builder", icon: CalendarDays, color: "text-red-400" },
+    { label: "Schedule", href: "/admin/schedule-builder", icon: CalendarDays, color: "text-red-400" },
     { label: "Teachers", href: "/admin/teachers", icon: Users, color: "text-green-400" },
     { label: "Subjects", href: "/admin/subjects", icon: BookOpen, color: "text-purple-400" },
     { label: "Sections", href: "/admin/sections", icon: Building2, color: "text-yellow-400" },
@@ -39,7 +38,6 @@ export default function AdminSidebar() {
   const settingsItems: { label: string; href: string; icon: LucideIcon; color: string }[] = [
     { label: "Time Slots", href: "/admin/time-slots", icon: Clock, color: "text-indigo-400" },
     { label: "Workload", href: "/admin/workload", icon: BarChart3, color: "text-pink-400" },
-    { label: "Manage Data", href: "/admin/data", icon: Database, color: "text-cyan-400" },
   ];
 
   return (

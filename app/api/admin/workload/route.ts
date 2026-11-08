@@ -11,10 +11,15 @@ export async function GET(request: NextRequest) {
     }
 
     const schedules = await prisma.scheduleBlock.findMany({
-      include: {
-        teacher: { include: { user: true } },
-        subject: true,
-        section: true,
+      select: {
+        teacherId: true,
+        teacher: {
+          select: {
+            user: { select: { name: true } },
+          },
+        },
+        subject: { select: { name: true } },
+        section: { select: { name: true } },
       },
     });
 
@@ -38,15 +43,13 @@ export async function GET(request: NextRequest) {
       workloadMap[teacherId].sections.add(schedule.section.name);
     });
 
-    // Convert to array and add status
+    // Convert the workload sets into JSON-safe arrays.
     const workloads = Object.values(workloadMap).map((w: any) => ({
       teacherId: w.teacherId,
       teacherName: w.teacherName,
       periods: w.periods,
       subjects: Array.from(w.subjects),
       sections: Array.from(w.sections),
-      workloadPercentage: Math.round((w.periods / 24) * 100), // 24 = full load
-      status: w.periods < 18 ? "underloaded" : w.periods > 24 ? "overloaded" : "balanced",
     }));
 
     return NextResponse.json(workloads);

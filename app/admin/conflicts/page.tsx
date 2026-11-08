@@ -35,6 +35,7 @@ export default function ConflictResolutionPage() {
   const router = useRouter();
   const [data, setData] = useState<ConflictData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadConflicts();
@@ -44,12 +45,17 @@ export default function ConflictResolutionPage() {
 
   async function loadConflicts() {
     try {
-      const response = await fetch("/api/admin/conflicts");
-      if (response.ok) {
-        setData(await response.json());
+      const response = await fetch("/api/admin/conflicts", { cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to load conflict report");
       }
+
+      setData(result);
+      setError("");
     } catch (error) {
       console.error("Failed to load conflicts:", error);
+      setError(error instanceof Error ? error.message : "Failed to load conflict report");
     } finally {
       setLoading(false);
     }
@@ -168,7 +174,20 @@ export default function ConflictResolutionPage() {
         )}
 
         {/* Success State */}
-        {!hasIssues && !loading && (
+        {error && !loading && (
+          <section className="rounded-xl border border-red-700 bg-red-900/20 p-6 text-center">
+            <p className="mb-4 text-red-300">{error}</p>
+            <button
+              type="button"
+              onClick={loadConflicts}
+              className="rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700"
+            >
+              Retry
+            </button>
+          </section>
+        )}
+
+        {!hasIssues && !loading && !error && data && (
           <section className="bg-green-900/20 border border-green-700 rounded-xl p-8 text-center">
             <div className="text-4xl mb-4">✅</div>
             <h2 className="text-2xl font-bold text-green-300 mb-2">Perfect Schedule!</h2>
