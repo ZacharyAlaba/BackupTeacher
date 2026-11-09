@@ -919,6 +919,7 @@ export async function GET() {
             teacherId: teacher.teacherId,
             name: teacher.user.name,
             email: teacher.user.email,
+            governmentEmail: teacher.governmentEmail,
             dateOfBirth: teacher.dateOfBirth?.toISOString().split("T")[0] ?? null,
             gender: teacher.gender,
             phone: teacher.phone,
